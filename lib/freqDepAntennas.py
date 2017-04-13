@@ -63,7 +63,7 @@ def antenna_response( theta, phi, psi, q, T=1., freqs=0. ):
     ny = sinTheta*sinPhi
     
     ### compute terms common to each antenna pattern
-    freqsT = 2*np.pi*freqs*T
+    freqsT = 2j*np.pi*freqs*T
     twoFreqsT = 2*freqsT
     exp_twoFreqsT = np.exp(-twoFreqsT)
 
@@ -104,7 +104,7 @@ def coordIndep_antenna_response( theta, phi, psi, ex, ey, q, T=1., freqs=0. ):
     n = np.array([sinTheta*cosPhi, sinTheta*sinPhi, cosTheta])
 
     ### compute detector matrix
-    freqsT = 2*np.pi*freqs*T
+    freqsT = 2j*np.pi*freqs*T
     twoFreqsT = 2*freqsT
     exp_twoFreqsT = np.exp(-twoFreqsT)
 
