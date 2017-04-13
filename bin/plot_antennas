@@ -6,21 +6,46 @@ author = "Reed Essick"
 
 #-------------------------------------------------
 
+import os
+
 import freqDepAntennas as ant
 
+import numpy as np
 import healpy as hp
 
 import matplotlib
 matplotlib.use("Agg")
 from matplotlib import pyplot as plt
+plt.rcParams['text.usetex'] = True
+
+from lalinference import plot as lalinf_plot
 
 from optparse import OptionParser
+
+#-------------------------------------------------
+
+axpos = [0.03, 0.03, 0.94, 0.94]
 
 #-------------------------------------------------
 
 parser = OptionParser(usage=usage, description=description)
 
 parser.add_option('-v', '--verbose', default=False, action='store_true')
+parser.add_option('-V', '--Verbose', default=False, action='store_true')
+
+parser.add_option('-n', '--nside', default=256, type='int')
+
+parser.add_option('-q', '--q', default=0.95, type='float')
+
+parser.add_option('', '--ex', default=[], nargs=3, type='float')
+parser.add_option('', '--ey', default=[], nargs=3, type='float')
+
+parser.add_option('', '--Ntrial', default=10, type='int', 
+    help='the number of times we randomly draw psi and ex, ey to check for agreement')
+parser.add_option('', '--Nfreq', default=10, type='int',
+    help='the number of frequency samples to use when generating plots')
+
+parser.add_option('', '--color-map', default='OrRd', type='string')
 
 parser.add_option('-o', '--output-dir', default='.', type='string')
 parser.add_option('-t', '--tag', default='', type='string')
@@ -30,20 +55,136 @@ opts, args = parser.parse_args()
 if opts.tag:
     opts.tag = "_"+opts.tag
 
+if not os.path.exists(opts.output_dir):
+    os.makedirs(opts.output_dir)
+
+opts.verbose = opts.verbose or opts.Verbose
+
+while len(opts.ex)!=3:
+    opts.ex = [float(_) for _ in raw_input('--ex=').strip().split()]
+opts.ex = np.array(opts.ex)
+
+while len(opts.ey)!=3:
+    opts.ey = [float(_) for _ in raw_input('--ey=').strip().split()]
+opts.ey = np.array(opts.ey)
+
 #-------------------------------------------------
 
-raise NotImplementedError, '''\
-need to implement plotting routines that call the response functions within ant
+### "T" sets some scale for the frequencies but is otherwise uninteresting
+### without loss of generality, we set it to 1
+T = 1.
 
-    antenna_response( theta, phi, psi, q, T=1., freqs=0. )
-    coordIndep_antenna_response( theta, phi, psi, ex, ey, q, T=1., freqs=0. )
+### generate theta, phi, psi
+npix = hp.nside2npix(opts.nside)
+theta, phi = hp.pix2ang(opts.nside, np.arange(npix))
 
-confirm that these agree when ex=[1,0,0], ey=[0,1,0]
-confirm that these behave as expected when 
+### test function calls
+if opts.verbose:
+    print "testing two formulations for agreement"
+for _ in xrange(opts.Ntrial):
+    if opts.Verbose:
+        print '    %d / %d'%(_+1, opts.Ntrial)
 
-    freqs->0 
-    freqs->1/T
+    ex = np.random.rand(3)
+    ex /= np.sum(ex**2)**0.5
+#    ex = np.array([1,0,0])
 
-generate some nice representaiton of how the response changes as a function of frequency
-Also confirm that Fx**2+Fp**2 does not depend on psi (do this numerically)
-'''
+    ey = np.random.rand(3)
+    ey /= np.sum(ey**2)**0.5
+#    ey = np.array([0,1,0])
+
+    psi = np.random.rand(npix)*2*np.pi
+    
+    a = np.array(ant.const_antenna_response(theta, phi, psi, ex, ey))
+    b = np.array(ant.antenna_response(theta, phi, psi, ex, ey, opts.q, T=T))
+    c = np.array(ant.antenna_response(theta, phi, np.zeros_like(theta), ex, ey, opts.q, T=T))
+
+    assert np.all(a==b), 'two formulations do not agree!'
+    assert np.all(np.abs(np.sum(b**2,axis=0)-np.sum(c**2,axis=0))<1e-10), 'F+**2 + Fx**2 depends on psi!'
+
+#------------------------
+
+### now, we only work with the coordIndep formulation
+if opts.verbose:
+    print "plotting as a function of frequency"
+freqs = np.linspace(0, 1./T, opts.Nfreq) ### the frequencies at which we evaluate antenna patterns
+psi = np.zeros_like(theta, dtype=float)
+
+Fp, Fx = ant.antenna_response(theta, phi, psi, opts.ex, opts.ey, opts.q, T=T, freqs=freqs)
+
+for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
+
+    if opts.Verbose:
+        print '  %d / %d'%(ind+1, opts.Nfreq)
+
+    title = "$fT = %.3f$"%(freqs[ind])
+
+    #--- total magnitude
+    fig = plt.figure()
+    ax = fig.add_axes(axpos, projection='mollweide')
+
+    lalinf_plot.healpix_heatmap( np.abs(fp)**2+np.abs(fx)**2, cmap=plt.get_cmap(opts.color_map) )
+
+    ax.set_title(title)
+
+    figname = "%s/mag_%d%s.png"%(opts.output_dir, ind, opts.tag)
+    if opts.verbose:
+        print "    "+figname
+    fig.savefig(figname)
+    plt.close(fig)
+
+    #--- F+ magnitude
+    fig = plt.figure()
+    ax = fig.add_axes(axpos, projection='mollweide')
+
+    ax.set_title(title)
+
+    lalinf_plot.healpix_heatmap( np.abs(fp)**2, cmap=plt.get_cmap(opts.color_map) )
+
+    figname = "%s/magF+_%d%s.png"%(opts.output_dir, ind, opts.tag)
+    if opts.verbose:
+        print "    "+figname
+    fig.savefig(figname)
+    plt.close(fig)
+
+    #--- F+ phase
+    fig = plt.figure()
+    ax = fig.add_axes(axpos, projection='mollweide')
+
+    ax.set_title(title)
+
+    lalinf_plot.healpix_heatmap( fp.imag/fp.real, cmap=plt.get_cmap(opts.color_map) )
+
+    figname = "%s/phsF+_%d%s.png"%(opts.output_dir, ind, opts.tag)
+    if opts.verbose:
+        print "    "+figname
+    fig.savefig(figname)
+    plt.close(fig)
+
+    #--- Fx magnitude
+    fig = plt.figure()
+    ax = fig.add_axes(axpos, projection='mollweide')
+
+    ax.set_title(title)
+
+    lalinf_plot.healpix_heatmap( np.abs(fx)**2, cmap=plt.get_cmap(opts.color_map) )
+
+    figname = "%s/magFx_%d%s.png"%(opts.output_dir, ind, opts.tag)
+    if opts.verbose:
+        print "    "+figname
+    fig.savefig(figname)
+    plt.close(fig)
+
+    #--- Fx phase
+    fig = plt.figure()
+    ax = fig.add_axes(axpos, projection='mollweide')
+
+    ax.set_title(title)
+
+    lalinf_plot.healpix_heatmap( fx.imag/fx.real, cmap=plt.get_cmap(opts.color_map) )
+
+    figname = "%s/phsFx_%d%s.png"%(opts.output_dir, ind, opts.tag)
+    if opts.verbose:
+        print "    "+figname
+    fig.savefig(figname)
+    plt.close(fig)
