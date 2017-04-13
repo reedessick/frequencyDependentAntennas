@@ -8,6 +8,8 @@ author = "Reed Essick"
 
 import freqDepAntennas as ant
 
+import healpy as hp
+
 import matplotlib
 matplotlib.use("Agg")
 from matplotlib import pyplot as plt
@@ -30,4 +32,18 @@ if opts.tag:
 
 #-------------------------------------------------
 
-raise NotImplementedError
+raise NotImplementedError, '''\
+need to implement plotting routines that call the response functions within ant
+
+    antenna_response( theta, phi, psi, q, T=1., freqs=0. )
+    coordIndep_antenna_response( theta, phi, psi, ex, ey, q, T=1., freqs=0. )
+
+confirm that these agree when ex=[1,0,0], ey=[0,1,0]
+confirm that these behave as expected when 
+
+    freqs->0 
+    freqs->1/T
+
+generate some nice representaiton of how the response changes as a function of frequency
+Also confirm that Fx**2+Fp**2 does not depend on psi (do this numerically)
+'''
