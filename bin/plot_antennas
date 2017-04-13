@@ -127,7 +127,7 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     ax.set_title(title)
 
-    figname = "%s/mag_%d%s.png"%(opts.output_dir, ind, opts.tag)
+    figname = "%s/mag_%04d%s.png"%(opts.output_dir, ind, opts.tag)
     if opts.verbose:
         print "    "+figname
     fig.savefig(figname)
@@ -141,7 +141,7 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     lalinf_plot.healpix_heatmap( np.abs(fp)**2, cmap=plt.get_cmap(opts.color_map) )
 
-    figname = "%s/magF+_%d%s.png"%(opts.output_dir, ind, opts.tag)
+    figname = "%s/magF+_%04d%s.png"%(opts.output_dir, ind, opts.tag)
     if opts.verbose:
         print "    "+figname
     fig.savefig(figname)
@@ -155,7 +155,7 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     lalinf_plot.healpix_heatmap( fp.imag/fp.real, cmap=plt.get_cmap(opts.color_map) )
 
-    figname = "%s/phsF+_%d%s.png"%(opts.output_dir, ind, opts.tag)
+    figname = "%s/phsF+_%04d%s.png"%(opts.output_dir, ind, opts.tag)
     if opts.verbose:
         print "    "+figname
     fig.savefig(figname)
@@ -169,7 +169,7 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     lalinf_plot.healpix_heatmap( np.abs(fx)**2, cmap=plt.get_cmap(opts.color_map) )
 
-    figname = "%s/magFx_%d%s.png"%(opts.output_dir, ind, opts.tag)
+    figname = "%s/magFx_%04d%s.png"%(opts.output_dir, ind, opts.tag)
     if opts.verbose:
         print "    "+figname
     fig.savefig(figname)
@@ -183,7 +183,7 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     lalinf_plot.healpix_heatmap( fx.imag/fx.real, cmap=plt.get_cmap(opts.color_map) )
 
-    figname = "%s/phsFx_%d%s.png"%(opts.output_dir, ind, opts.tag)
+    figname = "%s/phsFx_%04d%s.png"%(opts.output_dir, ind, opts.tag)
     if opts.verbose:
         print "    "+figname
     fig.savefig(figname)
