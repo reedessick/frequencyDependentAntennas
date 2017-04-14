@@ -107,8 +107,9 @@ for ind, (theta, phi) in enumerate(opts.theta_phi):
             Fp /= fp
         if fx!=0:
             Fx /= fx
-        if fp!=0 and fx!=0:
-            FpFx /= fp**2 + fx**2
+        norm = fp**2 + fx**2
+        if norm!=0:
+            FpFx /= norm
 
     #--- total magnitude
     fig = plt.figure()
