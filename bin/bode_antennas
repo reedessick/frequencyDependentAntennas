@@ -1,0 +1,147 @@
+#!/usr/bin/env python
+
+usage = "bode_antennas [--options]"
+description = "make some plots of the antenna patterns for a single IFO"
+author = "Reed Essick"
+
+#-------------------------------------------------
+
+import os
+
+import freqDepAntennas as ant
+
+import numpy as np
+import healpy as hp
+
+import matplotlib
+matplotlib.use("Agg")
+from matplotlib import pyplot as plt
+plt.rcParams['text.usetex'] = True
+
+from lalinference import plot as lalinf_plot
+
+from optparse import OptionParser
+
+#-------------------------------------------------
+
+rad2deg = 180/np.pi
+
+def phs( x ):
+    imag = x.imag
+    real = x.real
+
+    ans = np.empty_like(x)
+
+    t = real==0
+    ans[t] = 0.5*np.pi
+
+    t = real!=0
+    ans[t] = np.arctan(imag[t]/real[t])
+
+    return ans
+
+#-------------------------------------------------
+
+parser = OptionParser(usage=usage, description=description)
+
+parser.add_option('-v', '--verbose', default=False, action='store_true')
+parser.add_option('-V', '--Verbose', default=False, action='store_true')
+
+parser.add_option('', '--theta-phi', nargs=2, default=[], type='float', action='append',
+    help="the source locations for which we generate bode plots. Should be specified in degrees!")
+
+parser.add_option('-q', '--q', default=0.95, type='float')
+
+parser.add_option('', '--ex', default=[], nargs=3, type='float')
+parser.add_option('', '--ey', default=[], nargs=3, type='float')
+
+parser.add_option('', '--Nfreq', default=10, type='int',
+    help='the number of frequency samples to use when generating plots')
+parser.add_option('', '--fmin', default=1e-3, type='float')
+parser.add_option('', '--fmax', default=2, type='float')
+
+parser.add_option('', '--min-mag', default=1e-4, type='float')
+
+parser.add_option('-o', '--output-dir', default='.', type='string')
+parser.add_option('-t', '--tag', default='', type='string')
+
+opts, args = parser.parse_args()
+
+if opts.tag:
+    opts.tag = "_"+opts.tag
+
+if not os.path.exists(opts.output_dir):
+    os.makedirs(opts.output_dir)
+
+opts.verbose = opts.verbose or opts.Verbose
+
+while len(opts.ex)!=3:
+    opts.ex = [float(_) for _ in raw_input('--ex=').strip().split()]
+opts.ex = np.array(opts.ex)
+
+while len(opts.ey)!=3:
+    opts.ey = [float(_) for _ in raw_input('--ey=').strip().split()]
+opts.ey = np.array(opts.ey)
+
+#-------------------------------------------------
+
+### "T" sets some scale for the frequencies but is otherwise uninteresting
+### without loss of generality, we set it to 1
+T = 1.
+
+#------------------------
+
+### now, we only work with the coordIndep formulation
+if opts.verbose:
+    print "plotting as a function of frequency"
+freqs = np.logspace(np.log10(opts.fmin), np.log10(opts.fmax), opts.Nfreq) ### the frequencies at which we evaluate antenna patterns
+
+for ind, (theta, phi) in enumerate(opts.theta_phi):
+    if opts.Verbose:
+        print "    theta : %.3f deg"%theta
+        print "    phi   : %.3f deg"%phi
+
+    title = "$\\theta=%.3f^\circ$\n$\phi=%.3f^\circ$"%(theta, phi)
+
+    Fp, Fx = ant.antenna_response([theta/rad2deg], [phi/rad2deg], [0.0], opts.ex, opts.ey, opts.q, T=T, freqs=freqs)
+    Fp = Fp.flatten()
+    Fx = Fx.flatten()
+
+    #--- total magnitude
+    fig = plt.figure()
+    mag_ax = plt.subplot(2,1,1)
+    phs_ax = plt.subplot(2,1,2)
+
+    mag_ax.plot( freqs, np.abs(Fp)**2+np.abs(Fx)**2, color='k', label='$|F_+|^2+|F_\\times|^2$')
+    mag_ax.plot( freqs, np.abs(Fp)**2, color='b', linestyle='dashed', label='$|F_+|^2$' )
+    mag_ax.plot( freqs, np.abs(Fx)**2, color='r', linestyle='dashed', label='$|F_\\times|^2$' )
+
+    plt.setp(mag_ax.get_xticklabels(), visible=False)
+    mag_ax.set_ylabel('magnitude')
+    mag_ax.set_title(title)
+
+    phs_ax.plot( freqs, phs(Fp)*rad2deg, color='b', label='$F_+$' )
+    phs_ax.plot( freqs, phs(Fx)*rad2deg, color='r', label='$F_\\times$' )
+
+    phs_ax.set_xlabel('$fT$')
+    phs_ax.set_ylabel('phase [$^\circ$]')
+
+    mag_ax.legend(loc='best')
+
+    mag_ax.set_yscale('log')
+    mag_ax.set_ylim(ymin=opts.min_mag, ymax=1.1)
+    mag_ax.set_xscale('log')
+    mag_ax.set_xlim(xmin=opts.fmin, xmax=2)
+
+    phs_ax.set_ylim(ymin=-91, ymax=91)
+    phs_ax.set_yticks([-90, -60, -30, 0, 30, 60, 90])
+    phs_ax.set_xscale('log')
+    phs_ax.set_xlim(mag_ax.get_xlim())
+
+    plt.subplots_adjust(hspace=0.05)
+
+    figname = "%s/bode_%04d%s.png"%(opts.output_dir, ind, opts.tag)
+    if opts.verbose:
+        print "    "+figname
+    fig.savefig(figname)
+    plt.close(fig)
