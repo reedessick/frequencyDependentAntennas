@@ -16,14 +16,6 @@ import numpy as np
 
 #--- helper functions
 
-def __dV__( q, exp_twoFreqsT ):
-    '''
-    helper function that determines the prefactor for the antenna patterns.
-    this may typically be included in the PSD rather than the antenna patterns, so we may want to set this to 1
-    '''
-    return 0.5
-#    return exp_twoFreqsT/(1-q*exp_twoFreqsT)
-
 def __D__( freqsT, twoFreqsT, exp_twoFreqsT, N ):
     '''
     helper function that returns the part of the frequency dependence that depends on the arm's directions
@@ -74,7 +66,7 @@ def __D__( freqsT, twoFreqsT, exp_twoFreqsT, N ):
 
 #--- actual responses
 
-def antenna_response( theta, phi, psi, ex, ey, q, T=1., freqs=0. ):
+def antenna_response( theta, phi, psi, ex, ey, T=1., freqs=0. ):
     '''
     the input variables mean things
     theta, phi, psi, and freqs should all be the same length np.ndarray objects if they are not floats
@@ -103,9 +95,9 @@ def antenna_response( theta, phi, psi, ex, ey, q, T=1., freqs=0. ):
     twoFreqsT = 2*freqsT
     exp_twoFreqsT = np.exp(-twoFreqsT)
 
-    dV = __dV__(q, exp_twoFreqsT)
-    dV_xx = dV * __D__(freqsT, twoFreqsT, exp_twoFreqsT, np.sum(np.outer(ex, np.ones_like(theta))*n, axis=0))
-    dV_yy = dV * __D__(freqsT, twoFreqsT, exp_twoFreqsT, np.sum(np.outer(ey, np.ones_like(theta))*n, axis=0))
+    # factor of 1/2 is for normalization
+    dV_xx = 0.5 * __D__(freqsT, twoFreqsT, exp_twoFreqsT, np.sum(np.outer(ex, np.ones_like(theta))*n, axis=0))
+    dV_yy = 0.5 * __D__(freqsT, twoFreqsT, exp_twoFreqsT, np.sum(np.outer(ey, np.ones_like(theta))*n, axis=0))
 
     ### assemble these parts into antenna responses
     Fp = 0.

@@ -15,10 +15,14 @@ from optparse import OptionParser
 
 #-------------------------------------------------
 
+deg2rad = np.pi/180
+
+#-------------------------------------------------
+
 parser = OptionParser(usage=usage, description=description)
 
 parser.add_option('-v', '--verbose', default=False, action='store_true')
-parser.add_optoin('-V', '--Verbose', default=False, action='store_true')
+parser.add_option('-V', '--Verbose', default=False, action='store_true')
 
 parser.add_option('', '--theta-phi-psi', nargs=3, default=[], type='float', action='append',
     help='theta, phi, psi triples specified in degrees. Can be repeated')
@@ -26,7 +30,8 @@ parser.add_option('', '--theta-phi-psi', nargs=3, default=[], type='float', acti
 parser.add_option('', '--ex', default=[], nargs=3, type='float')
 parser.add_option('', '--ey', default=[], nargs=3, type='float')
 
-parser.add_option('-q', '--q', default=0.95, type='float')
+parser.add_option('-T', '--T', default=1/(2*37.5e3), type='float',
+    help='the round-trip travel time within the arm, in seconds')
 
 parser.add_option('-o', '--output-dir', default='.', type='string')
 parser.add_option('-t', '--tag', default='', type='string')
@@ -43,13 +48,46 @@ if opts.tag:
 
 #-------------------------------------------------
 
-raise NotImplementedError, '''\
+if opts.verbose:
+    print "plotting waveforms"
+
+for ind, (theta, phi, psi) in enumerate(opts.theta_phi_psi):
+
+    if opts.Verbose:
+        print "    theta : %.3f deg"%theta
+        print "    phi   : %.3f deg"%phi
+        print "    psi   : %.3f deg"%psi
+
+    theta *= deg2rad
+    phi *= deg2rad
+    psi *= deg2rad
+
+    # generate waveform
+    if opts.Verbose:
+        print "        generating waveform"
+
+    raise NotImplementedError, '''\
 generate time-domain waveforms coming from this point in the sky
 
-call lalsimulation.ChooseFDWaveform with appropriate arguments to get h+, hx
+call lalsimulation.ChooseFDWaveform with appropriate arguments to get h+, hx'''
 
-then project this into detector using corrections based on frequency and assuming the zero-frequency response for all frequencies
+    ### project waveforms into detectors
+    if opts.Verbose:
+        print "        projecting into detector"
 
+    # compute zero-frequency response
+    Fp0, Fx0 = ant.const_antenna_response([theta], [phi], [psi], opts.ex, opts.ey)
+
+    # compute correct response
+    Fp, Fx = ant.antenna_response([theta], [phi], [psi], opts.ex, opts.ey, opts.q, T=opts.T, freqs=freqs)
+
+    raise NotImplementedError, '''\
+then project this into detector using corrections based on frequency and assuming the zero-frequency response for all frequencies'''
+
+    ### plot waveforms
+    if opts.Verbose:
+        print "        plotting"
+
+    raise NotImplementedError, '''\
 plot the time-domain data on the same axes
-also want to plot in the frequency domain (bode plot?)
-'''
+also want to plot in the frequency domain (bode plot?)'''

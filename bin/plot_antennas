@@ -51,8 +51,6 @@ parser.add_option('-V', '--Verbose', default=False, action='store_true')
 
 parser.add_option('-n', '--nside', default=256, type='int')
 
-parser.add_option('-q', '--q', default=0.95, type='float')
-
 parser.add_option('', '--ex', default=[], nargs=3, type='float')
 parser.add_option('', '--ey', default=[], nargs=3, type='float')
 
@@ -112,8 +110,8 @@ for _ in xrange(opts.Ntrial):
     psi = np.random.rand(npix)*2*np.pi
     
     a = np.array(ant.const_antenna_response(theta, phi, psi, ex, ey))
-    b = np.array(ant.antenna_response(theta, phi, psi, ex, ey, opts.q, T=T))
-    c = np.array(ant.antenna_response(theta, phi, np.zeros_like(theta), ex, ey, opts.q, T=T))
+    b = np.array(ant.antenna_response(theta, phi, psi, ex, ey, T=T))
+    c = np.array(ant.antenna_response(theta, phi, np.zeros_like(theta), ex, ey, T=T))
 
     assert np.all(a==b), 'two formulations do not agree!'
     assert np.all(np.abs(np.sum(b**2,axis=0)-np.sum(c**2,axis=0))<1e-10), 'F+**2 + Fx**2 depends on psi!'
@@ -126,7 +124,7 @@ if opts.verbose:
 freqs = np.linspace(0, 1./T, opts.Nfreq) ### the frequencies at which we evaluate antenna patterns
 psi = np.zeros_like(theta, dtype=float)
 
-Fp, Fx = ant.antenna_response(theta, phi, psi, opts.ex, opts.ey, opts.q, T=T, freqs=freqs)
+Fp, Fx = ant.antenna_response(theta, phi, psi, opts.ex, opts.ey, T=T, freqs=freqs)
 
 for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 

@@ -39,8 +39,6 @@ parser.add_option('-V', '--Verbose', default=False, action='store_true')
 parser.add_option('', '--theta-phi', nargs=2, default=[], type='float', action='append',
     help="the source locations for which we generate bode plots. Should be specified in degrees!")
 
-parser.add_option('-q', '--q', default=0.95, type='float')
-
 parser.add_option('', '--ex', default=[], nargs=3, type='float')
 parser.add_option('', '--ey', default=[], nargs=3, type='float')
 
@@ -95,7 +93,7 @@ for ind, (theta, phi) in enumerate(opts.theta_phi):
 
     title = "$\\theta=%.3f^\circ$\n$\phi=%.3f^\circ$"%(theta, phi)
 
-    Fp, Fx = ant.antenna_response([theta/rad2deg], [phi/rad2deg], [0.0], opts.ex, opts.ey, opts.q, T=T, freqs=freqs)
+    Fp, Fx = ant.antenna_response([theta/rad2deg], [phi/rad2deg], [0.0], opts.ex, opts.ey, T=T, freqs=freqs)
     Fp = Fp.flatten()
     Fx = Fx.flatten()
 
