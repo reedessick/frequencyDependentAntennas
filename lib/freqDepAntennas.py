@@ -35,6 +35,10 @@ def __D__( freqsT, twoFreqsT, exp_twoFreqsT, N ):
     elif np.all(freqsT==0):
         return np.ones((len(freqsT), len(N)), dtype=complex)
 
+    #--- matt's condensed version
+#    phi = freqsT/1j
+#    return np.exp(-freqsT)/(1-N**2) * ( np.sinc(phi/np.pi) + N/(freqsT)*(np.cos(phi)-np.exp(freqsT*N)))
+
     a = 1-np.outer(np.ones_like(freqsT), N)
     b = 2-a
 
@@ -52,7 +56,7 @@ def __D__( freqsT, twoFreqsT, exp_twoFreqsT, N ):
 
     # where a is non-zero
     this_truth = truth*(a!=0)
-    ans[this_truth] += (1-np.exp(-a[this_truth]*freqsT[this_truth]))/(a[this_truth]*twoFreqsT[this_truth])
+    ans[this_truth] += (1 - np.exp( -a[this_truth]*freqsT[this_truth] ) ) / ( a[this_truth]*twoFreqsT[this_truth] )
 
     # wehre a is zero
     this_truth = truth*(a==0)
@@ -60,7 +64,7 @@ def __D__( freqsT, twoFreqsT, exp_twoFreqsT, N ):
 
     # where b is non-zero
     this_truth = truth*(b!=0)
-    ans[this_truth] -= exp_twoFreqsT[this_truth]*(1-np.exp(b[this_truth]*freqsT[this_truth]))/(b[this_truth]*twoFreqsT[this_truth])
+    ans[this_truth] -= exp_twoFreqsT[this_truth] * (1 - np.exp( b[this_truth]*freqsT[this_truth] ) ) / ( b[this_truth]*twoFreqsT[this_truth] )
 
     # where b is zero
     this_truth = truth*(b==0)
@@ -115,6 +119,7 @@ def antenna_response( theta, phi, psi, ex, ey, q, T=1., freqs=0. ):
             ex_wavej = ex_wave[j]
             ey_wavej = ey_wave[j]
             Dij = dV_xx * exi*ex[j] - dV_yy * eyi*ey[j] ### compute matrix element for detector matrix
+
             Fp += Dij * (ex_wavei*ex_wavej - ey_wavei*ey_wavej) ### multiply by matrix element from wave polarizations
             Fx += Dij * (ex_wavei*ey_wavej + ey_wavei*ex_wavej)
 
