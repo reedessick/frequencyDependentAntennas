@@ -1,0 +1,55 @@
+#!/usr/bin/env python
+
+usage = "plot_waveforms [--options]"
+description = "plot time-domain waveforms projected inot a detector both with and without the correction to the antenna patterns based on the frequency"
+author = "Reed Essick"
+
+#-------------------------------------------------
+
+import os
+
+import numpy as np
+import freqDepAntennas as ant
+
+from optparse import OptionParser
+
+#-------------------------------------------------
+
+parser = OptionParser(usage=usage, description=description)
+
+parser.add_option('-v', '--verbose', default=False, action='store_true')
+parser.add_optoin('-V', '--Verbose', default=False, action='store_true')
+
+parser.add_option('', '--theta-phi-psi', nargs=3, default=[], type='float', action='append',
+    help='theta, phi, psi triples specified in degrees. Can be repeated')
+
+parser.add_option('', '--ex', default=[], nargs=3, type='float')
+parser.add_option('', '--ey', default=[], nargs=3, type='float')
+
+parser.add_option('-q', '--q', default=0.95, type='float')
+
+parser.add_option('-o', '--output-dir', default='.', type='string')
+parser.add_option('-t', '--tag', default='', type='string')
+
+opts, args = parser.parse_args()
+
+opts.verbose = opts.verbose or opts.Verbose
+
+if not os.path.exists(opts.output_dir):
+    os.makedirs(opts.output_dir)
+
+if opts.tag:
+    opts.tag = "_"+opts.tag
+
+#-------------------------------------------------
+
+raise NotImplementedError, '''\
+generate time-domain waveforms coming from this point in the sky
+
+call lalsimulation.ChooseFDWaveform with appropriate arguments to get h+, hx
+
+then project this into detector using corrections based on frequency and assuming the zero-frequency response for all frequencies
+
+plot the time-domain data on the same axes
+also want to plot in the frequency domain (bode plot?)
+'''
