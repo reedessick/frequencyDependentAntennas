@@ -26,6 +26,22 @@ from optparse import OptionParser
 
 axpos = [0.03, 0.03, 0.94, 0.94]
 
+rad2deg = 180/np.pi
+
+def phs( x ):
+    imag = x.imag
+    real = x.real
+
+    ans = np.empty_like(x)
+
+    t = real==0
+    ans[t] = 0.5*np.pi
+
+    t = real!=0
+    ans[t] = np.arctan(imag[t]/real[t])
+
+    return ans
+
 #-------------------------------------------------
 
 parser = OptionParser(usage=usage, description=description)
@@ -127,6 +143,10 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     ax.set_title(title)
 
+    cb = plt.colorbar(orientation='horizontal', shrink=0.8)
+    cb.set_label('$|F_+|^2+|F_\\times|^2$')
+    cb.set_clim(vmin=0, vmax=1)
+
     figname = "%s/mag_%04d%s.png"%(opts.output_dir, ind, opts.tag)
     if opts.verbose:
         print "    "+figname
@@ -141,6 +161,10 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     lalinf_plot.healpix_heatmap( np.abs(fp)**2, cmap=plt.get_cmap(opts.color_map) )
 
+    cb = plt.colorbar(orientation='horizontal', shrink=0.8)
+    cb.set_label('$|F_+|^2$')
+    cb.set_clim(vmin=0, vmax=1)
+
     figname = "%s/magF+_%04d%s.png"%(opts.output_dir, ind, opts.tag)
     if opts.verbose:
         print "    "+figname
@@ -153,7 +177,11 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     ax.set_title(title)
 
-    lalinf_plot.healpix_heatmap( fp.imag/fp.real, cmap=plt.get_cmap(opts.color_map) )
+    lalinf_plot.healpix_heatmap( phs(fp)*rad2deg, cmap=plt.get_cmap(opts.color_map) )
+
+    cb = plt.colorbar(orientation='horizontal', shrink=0.8)
+    cb.set_label('phase $F_+$ [$^\circ$]')
+    cb.set_clim(vmin=-90, vmax=90)
 
     figname = "%s/phsF+_%04d%s.png"%(opts.output_dir, ind, opts.tag)
     if opts.verbose:
@@ -169,6 +197,10 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     lalinf_plot.healpix_heatmap( np.abs(fx)**2, cmap=plt.get_cmap(opts.color_map) )
 
+    cb = plt.colorbar(orientation='horizontal')
+    cb.set_label('$|F_\\times|^2$')
+    cb.set_clim(vmin=0, vmax=1)
+
     figname = "%s/magFx_%04d%s.png"%(opts.output_dir, ind, opts.tag)
     if opts.verbose:
         print "    "+figname
@@ -181,7 +213,11 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     ax.set_title(title)
 
-    lalinf_plot.healpix_heatmap( fx.imag/fx.real, cmap=plt.get_cmap(opts.color_map) )
+    lalinf_plot.healpix_heatmap( phs(fx)*rad2deg, cmap=plt.get_cmap(opts.color_map) )
+
+    cb = plt.colorbar(orientation='horizontal')
+    cb.set_label('phase $F_\\times$ [$^\circ$]')
+    cb.set_clim(vmin=-90, vmax=90)
 
     figname = "%s/phsFx_%04d%s.png"%(opts.output_dir, ind, opts.tag)
     if opts.verbose:
