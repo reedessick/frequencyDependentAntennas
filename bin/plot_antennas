@@ -145,7 +145,7 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     cb = plt.colorbar(orientation='horizontal', shrink=0.8)
     cb.set_label('$|F_+|^2+|F_\\times|^2$')
-    cb.set_clim(vmin=0, vmax=1)
+#    cb.set_clim(vmin=0, vmax=1)
 
     figname = "%s/mag_%04d%s.png"%(opts.output_dir, ind, opts.tag)
     if opts.verbose:
@@ -163,7 +163,7 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     cb = plt.colorbar(orientation='horizontal', shrink=0.8)
     cb.set_label('$|F_+|^2$')
-    cb.set_clim(vmin=0, vmax=1)
+#    cb.set_clim(vmin=0, vmax=1)
 
     figname = "%s/magF+_%04d%s.png"%(opts.output_dir, ind, opts.tag)
     if opts.verbose:
@@ -199,7 +199,7 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     cb = plt.colorbar(orientation='horizontal')
     cb.set_label('$|F_\\times|^2$')
-    cb.set_clim(vmin=0, vmax=1)
+#    cb.set_clim(vmin=0, vmax=1)
 
     figname = "%s/magFx_%04d%s.png"%(opts.output_dir, ind, opts.tag)
     if opts.verbose:
