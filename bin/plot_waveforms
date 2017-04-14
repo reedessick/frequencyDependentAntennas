@@ -11,6 +11,19 @@ import os
 import numpy as np
 import freqDepAntennas as ant
 
+from lal.lal import LIGOTimeGPS
+from lal.lal import MSUN_SI as LAL_MSUN_SI
+from lal.lal import PC_SI as LAL_PC_SI
+from lal.lal import DimensionlessUnit
+
+import lalsimulation.lalsimulation as lalsim
+from lalsimulation.lalsimulation import SimInspiralCreateWaveformFlags
+
+import matplotlib
+matplotlib.use("Agg")
+from matplotlib import pyplot as plt
+plt.rcParams['text.usetex'] = True
+
 from optparse import OptionParser
 
 #-------------------------------------------------
@@ -48,6 +61,83 @@ if opts.tag:
 
 #-------------------------------------------------
 
+
+# technical parameters for vector length
+srate = 4096.0
+seglen = 64.0
+length = srate*seglen # lenght of 60 secs, hardcoded. May call a LALSimRoutine to get an idea
+deltaT = 1/srate
+deltaF = 1.0 / (length * deltaT);
+
+#frequencies
+f_min = 20
+f_ref = 40 ### reference frequency for precessing spins
+f_max = float(srate)/2.0 ### up to Nyquist
+
+#-------------------------------------------------
+
+### generate waveform
+if opts.Verbose:
+    print "generating waveform"
+
+raise NotImplementedError, '''\
+generate time-domain waveforms coming from this point in the sky
+
+call lalsimulation.ChooseFDWaveform with appropriate arguments to get h+, hx
+
+WARNING: 
+    What I have now is almost certainly out-of-date syntax. 
+    We'll need to update this so that it runs with modern versions of LALSimulation'''
+
+# CBC params:
+M1 = 1.4 #msun
+M2 = 2.0
+
+#spins
+s1x = 0.0
+s1y = 0.0
+s1z = 0.0
+s2x = 0.0
+s2y = 0.0
+s2z = 0.0
+
+#distance
+D = 450  #Mpc
+
+#inclination
+iota = np.pi*2/6
+
+# constant coalescence phase
+phiRef = np.pi*3/2
+
+# Tidal parameters, zero=ignore
+lambda1 = 0
+lambda2 = 0
+
+nonGRparams = None
+
+#convert in SI
+r = D*LAL_PC_SI*1.0e6
+m1 = M1*LAL_MSUN_SI
+m2 = M2*LAL_MSUN_SI
+
+## Define which waveform we want to use
+GRwf_name = 'TaylorF2'
+GRapproximant = lalsim.GetApproximantFromString( GRwf_name )
+
+waveFlags = SimInspiralCreateWaveformFlags()
+
+# Use all PN phase terms and neglect amplitude ones.
+amplitudeO = 0
+phaseO = -1
+
+## build the waveforms!
+hfplus, hfcross = lalsim.SimInspiralChooseFDWaveform(phiRef, deltaF,  m1, m2, s1x, s1y, s1z, s2x, s2y, s2z, \
+                      f_min, f_max, f_ref, r, iota, lambda1, lambda2, waveFlags, nonGRparams, amplitudeO, phaseO, approximant)
+freqs = np.array([hfplus.f0+i*hfplus.deltaF for i in np.arange(hfplus.data.length)])
+
+#-------------------------------------------------
+
 if opts.verbose:
     print "plotting waveforms"
 
@@ -62,27 +152,22 @@ for ind, (theta, phi, psi) in enumerate(opts.theta_phi_psi):
     phi *= deg2rad
     psi *= deg2rad
 
-    # generate waveform
-    if opts.Verbose:
-        print "        generating waveform"
-
-    raise NotImplementedError, '''\
-generate time-domain waveforms coming from this point in the sky
-
-call lalsimulation.ChooseFDWaveform with appropriate arguments to get h+, hx'''
-
     ### project waveforms into detectors
     if opts.Verbose:
         print "        projecting into detector"
 
     # compute zero-frequency response
     Fp0, Fx0 = ant.const_antenna_response([theta], [phi], [psi], opts.ex, opts.ey)
+    signal0 = Fp0*hfplus.data.data + Fx0*hfcross.data.data
 
     # compute correct response
     Fp, Fx = ant.antenna_response([theta], [phi], [psi], opts.ex, opts.ey, opts.q, T=opts.T, freqs=freqs)
+    Fp = Fp.flatten()
+    Fx = Fx.flatten()
+    signal = Fp*hfplus.data.data + Fx*hfcross.data.data
 
     raise NotImplementedError, '''\
-then project this into detector using corrections based on frequency and assuming the zero-frequency response for all frequencies'''
+need to take an iFFT of the signal to get the time-domain waveform'''
 
     ### plot waveforms
     if opts.Verbose:
