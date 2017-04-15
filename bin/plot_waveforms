@@ -31,6 +31,35 @@ from optparse import OptionParser
 deg2rad = np.pi/180
 rad2deg = 1./deg2rad
 
+def tukey(N, alpha):
+    """
+    generate a tukey window
+    The Tukey window, also known as the tapered cosine window, can be regarded as a cosine lobe of width \alpha * N / 2
+        that is convolved with a rectangle window of width (1 - \alpha / 2). At \alpha = 1 it becomes rectangular, and
+        at \alpha = 0 it becomes a Hann window. 
+    """
+    # Special cases
+    if alpha <= 0:
+        return np.ones(N) #rectangular window
+    elif alpha >= 1:
+        return np.hanning(N)
+
+    # Normal case
+    x = np.linspace(0, 1, N)
+    w = np.ones(x.shape)
+
+    # first condition 0 <= x < alpha/2
+    first_condition = x<alpha/2
+    w[first_condition] = 0.5 * (1 + np.cos(2*np.pi/alpha * (x[first_condition] - alpha/2) ))
+
+    # second condition already taken care of
+
+    # third condition 1 - alpha / 2 <= x <= 1
+    third_condition = x>=(1 - alpha/2)
+    w[third_condition] = 0.5 * (1 + np.cos(2*np.pi/alpha * (x[third_condition] - 1 + alpha/2)))
+
+    return w
+
 #-------------------------------------------------
 
 parser = OptionParser(usage=usage, description=description)
@@ -87,7 +116,7 @@ deltaT = 1/srate
 deltaF = 1.0 / (length * deltaT);
 
 #frequencies
-f_min = 20
+f_min = 10
 f_ref = 40 ### reference frequency for precessing spins
 f_max = float(srate)/2.0 ### up to Nyquist
 
@@ -205,6 +234,9 @@ for ind, (theta, phi, psi) in enumerate(opts.theta_phi_psi):
     mag_ax.set_xlim(xmin=opts.plot_fmin, xmax=freqs[-1])
     phs_ax.set_xlim(mag_ax.get_xlim())
 
+    phs_ax.set_ylim(ymin=-181, ymax=181)
+    phs_ax.set_yticks([-180, -150, -120, -90, -60, -30, 0, 30, 60, 90, 120, 150, 180])
+
     plt.subplots_adjust(hspace=0.05)
 
     figname = "%s/waveform-freq_%04d%s.png"%(opts.output_dir, ind, opts.tag)
@@ -240,6 +272,9 @@ for ind, (theta, phi, psi) in enumerate(opts.theta_phi_psi):
     mag_ax.set_xlim(xmin=opts.plot_fmin, xmax=freqs[-1])
     phs_ax.set_xlim(mag_ax.get_xlim())
 
+    phs_ax.set_ylim(ymin=-181, ymax=181)
+    phs_ax.set_yticks([-180, -150, -120, -90, -60, -30, 0, 30, 60, 90, 120, 150, 180])
+
     plt.subplots_adjust(hspace=0.05)
 
     figname = "%s/residual-freq_%04d%s.png"%(opts.output_dir, ind, opts.tag)
@@ -252,10 +287,17 @@ for ind, (theta, phi, psi) in enumerate(opts.theta_phi_psi):
     if opts.Verbose:
         print "        transforming from frequency domain to time domain"
 
-    print "WARNING: there's something wrong with my iFFT, so there are artifacts in the time-domain signals"
+    ### multiply by a bandpass 
+    win = tukey(len(sf0), 0.25) ### apply a tukey window in the frequency domain
+    sf0 *= win
+    sf *= win
 
-    st0 = np.fft.ifft( np.fft.ifftshift(np.concatenate([np.conjugate(sf0[::-1][:-1]), sf0])) ).real ### only take the real part
-    st = np.fft.ifft( np.fft.ifftshift(np.concatenate([np.conjugate(sf[::-1][:-1]), sf])) ).real    ### imag << real, as expected
+    ### add the negative frequency components
+    sf0 = np.concatenate([np.conjugate(sf0[::-1][:-1]), sf0])
+    sf = np.concatenate([np.conjugate(sf[::-1][:-1]), sf])
+
+    st0 = np.fft.ifft(np.fft.ifftshift(sf0)).real ### only take the real part
+    st = np.fft.ifft(np.fft.ifftshift(sf)).real   ### imag << real, as expected
 
     ### plot in time domain
     if opts.Verbose:
@@ -274,6 +316,8 @@ for ind, (theta, phi, psi) in enumerate(opts.theta_phi_psi):
     ax.legend(loc='best')
 
     ax.set_xlim(xmin=opts.plot_tmin, xmax=-0.1*opts.plot_tmin)
+    ylim = np.max(np.abs(ax.get_ylim()))
+    ax.set_ylim(ymin=-ylim, ymax=ylim)
 
     figname = "%s/waveform-time_%04d%s.png"%(opts.output_dir, ind, opts.tag)
     if opts.verbose:
@@ -294,6 +338,8 @@ for ind, (theta, phi, psi) in enumerate(opts.theta_phi_psi):
     ax.grid(True, which='both')
 
     ax.set_xlim(xmin=opts.plot_tmin, xmax=-0.1*opts.plot_tmin)
+    ylim = np.max(np.abs(ax.get_ylim()))
+    ax.set_ylim(ymin=-ylim, ymax=ylim)
 
     figname = "%s/residual-time_%04d%s.png"%(opts.output_dir, ind, opts.tag)
     if opts.verbose:
