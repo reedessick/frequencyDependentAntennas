@@ -47,7 +47,7 @@ parser.add_option('', '--Nfreq', default=10, type='int',
 parser.add_option('', '--fmin', default=1e-3, type='float')
 parser.add_option('', '--fmax', default=2, type='float')
 
-parser.add_option('', '--min-mag', default=1e-4, type='float')
+parser.add_option('', '--min-mag', default=3e-3, type='float')
 
 parser.add_option('', '--norm2zeroFreq', default=False, action='store_true',
     help='normalize antenna patterns to their zero-frequency limit')
@@ -97,7 +97,7 @@ for ind, (theta, phi) in enumerate(opts.theta_phi):
     Fp = Fp.flatten()
     Fx = Fx.flatten()
 
-    FpFx = np.abs(Fp)**2+np.abs(Fx)**2
+    FpFx = (np.abs(Fp)**2+np.abs(Fx)**2)**0.5
 
     if opts.norm2zeroFreq:
         fp, fx = ant.const_antenna_response([theta/rad2deg], [phi/rad2deg], [0.0], opts.ex, opts.ey)
@@ -105,7 +105,7 @@ for ind, (theta, phi) in enumerate(opts.theta_phi):
             Fp /= fp
         if fx!=0:
             Fx /= fx
-        norm = fp**2 + fx**2
+        norm = (fp**2 + fx**2)**0.5
         if norm!=0:
             FpFx /= norm
 
@@ -115,8 +115,8 @@ for ind, (theta, phi) in enumerate(opts.theta_phi):
     phs_ax = plt.subplot(2,1,2)
 
     mag_ax.plot( freqs, FpFx, color='g', label='$|F_+|^2+|F_\\times|^2$')
-    mag_ax.plot( freqs, np.abs(Fp)**2, color='b', linestyle='dashed', label='$|F_+|^2$' )
-    mag_ax.plot( freqs, np.abs(Fx)**2, color='r', linestyle='dashed', label='$|F_\\times|^2$' )
+    mag_ax.plot( freqs, np.abs(Fp), color='b', linestyle='dashed', label='$|F_+|^2$' )
+    mag_ax.plot( freqs, np.abs(Fx), color='r', linestyle='dashed', label='$|F_\\times|^2$' )
 
     plt.setp(mag_ax.get_xticklabels(), visible=False)
     mag_ax.set_title(title)
