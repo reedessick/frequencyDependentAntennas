@@ -183,6 +183,8 @@ for ind, (theta, phi, psi) in enumerate(opts.theta_phi_psi):
         print "    phi   : %.3f deg"%phi
         print "    psi   : %.3f deg"%psi
 
+    title = "$\\theta = %.3f^\circ$  $\phi = %.3f^\circ$  $\psi = %.3f^\circ$"%(theta, phi, psi)
+
     theta *= deg2rad
     phi *= deg2rad
     psi *= deg2rad
@@ -237,6 +239,8 @@ for ind, (theta, phi, psi) in enumerate(opts.theta_phi_psi):
     phs_ax.set_ylim(ymin=-181, ymax=181)
     phs_ax.set_yticks([-180, -150, -120, -90, -60, -30, 0, 30, 60, 90, 120, 150, 180])
 
+    mag_ax.set_title(title)
+
     plt.subplots_adjust(hspace=0.05)
 
     figname = "%s/waveform-freq_%04d%s.png"%(opts.output_dir, ind, opts.tag)
@@ -274,6 +278,8 @@ for ind, (theta, phi, psi) in enumerate(opts.theta_phi_psi):
 
     phs_ax.set_ylim(ymin=-181, ymax=181)
     phs_ax.set_yticks([-180, -150, -120, -90, -60, -30, 0, 30, 60, 90, 120, 150, 180])
+
+    mag_ax.set_title(title)
 
     plt.subplots_adjust(hspace=0.05)
 
@@ -319,6 +325,8 @@ for ind, (theta, phi, psi) in enumerate(opts.theta_phi_psi):
     ylim = np.max(np.abs(ax.get_ylim()))
     ax.set_ylim(ymin=-ylim, ymax=ylim)
 
+    ax.set_title(title)
+
     figname = "%s/waveform-time_%04d%s.png"%(opts.output_dir, ind, opts.tag)
     if opts.verbose:
         print "    "+figname
@@ -340,6 +348,8 @@ for ind, (theta, phi, psi) in enumerate(opts.theta_phi_psi):
     ax.set_xlim(xmin=opts.plot_tmin, xmax=-0.1*opts.plot_tmin)
     ylim = np.max(np.abs(ax.get_ylim()))
     ax.set_ylim(ymin=-ylim, ymax=ylim)
+
+    ax.set_title(title)
 
     figname = "%s/residual-time_%04d%s.png"%(opts.output_dir, ind, opts.tag)
     if opts.verbose:
