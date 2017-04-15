@@ -11,13 +11,13 @@ import os
 import numpy as np
 import freqDepAntennas as ant
 
+from lal import lal
 from lal.lal import LIGOTimeGPS
 from lal.lal import MSUN_SI as LAL_MSUN_SI
 from lal.lal import PC_SI as LAL_PC_SI
 from lal.lal import DimensionlessUnit
 
 import lalsimulation.lalsimulation as lalsim
-from lalsimulation.lalsimulation import SimInspiralCreateWaveformFlags
 
 import matplotlib
 matplotlib.use("Agg")
@@ -29,6 +29,7 @@ from optparse import OptionParser
 #-------------------------------------------------
 
 deg2rad = np.pi/180
+rad2deg = 1./deg2rad
 
 #-------------------------------------------------
 
@@ -46,6 +47,9 @@ parser.add_option('', '--ey', default=[], nargs=3, type='float')
 parser.add_option('-T', '--T', default=1/(2*37.5e3), type='float',
     help='the round-trip travel time within the arm, in seconds')
 
+parser.add_option('', '--plot-fmin', default=30, type='float')
+parser.add_option('', '--plot-tmin', default=-5, type='float')
+
 parser.add_option('-o', '--output-dir', default='.', type='string')
 parser.add_option('-t', '--tag', default='', type='string')
 
@@ -59,13 +63,26 @@ if not os.path.exists(opts.output_dir):
 if opts.tag:
     opts.tag = "_"+opts.tag
 
+while len(opts.ex)!=3:
+    opts.ex = [float(_) for _ in raw_input('--ex=').strip().split()]
+opts.ex = np.array(opts.ex)
+
+while len(opts.ey)!=3:
+    opts.ey = [float(_) for _ in raw_input('--ey=').strip().split()]
+opts.ey = np.array(opts.ey)
+
 #-------------------------------------------------
 
+### generate waveform
+if opts.Verbose:
+    print "generating waveform"
 
 # technical parameters for vector length
 srate = 4096.0
+
 seglen = 64.0
 length = srate*seglen # lenght of 60 secs, hardcoded. May call a LALSimRoutine to get an idea
+
 deltaT = 1/srate
 deltaF = 1.0 / (length * deltaT);
 
@@ -74,24 +91,15 @@ f_min = 20
 f_ref = 40 ### reference frequency for precessing spins
 f_max = float(srate)/2.0 ### up to Nyquist
 
-#-------------------------------------------------
-
-### generate waveform
-if opts.Verbose:
-    print "generating waveform"
-
-raise NotImplementedError, '''\
-generate time-domain waveforms coming from this point in the sky
-
-call lalsimulation.ChooseFDWaveform with appropriate arguments to get h+, hx
-
-WARNING: 
-    What I have now is almost certainly out-of-date syntax. 
-    We'll need to update this so that it runs with modern versions of LALSimulation'''
+# reference parameters
+phiRef = np.pi*3/2
+longAscNodes = 0.
+eccentricity = 0.
+meanPerAno = 0.
 
 # CBC params:
-M1 = 1.4 #msun
-M2 = 2.0
+m1 = 1.4*LAL_MSUN_SI
+m2 = 2.0*LAL_MSUN_SI
 
 #spins
 s1x = 0.0
@@ -101,40 +109,38 @@ s2x = 0.0
 s2y = 0.0
 s2z = 0.0
 
-#distance
-D = 450  #Mpc
-
-#inclination
+#extrinsic params
+distance = 450*LAL_PC_SI*1.0e6
 iota = np.pi*2/6
 
-# constant coalescence phase
-phiRef = np.pi*3/2
-
-# Tidal parameters, zero=ignore
-lambda1 = 0
-lambda2 = 0
-
-nonGRparams = None
-
-#convert in SI
-r = D*LAL_PC_SI*1.0e6
-m1 = M1*LAL_MSUN_SI
-m2 = M2*LAL_MSUN_SI
-
 ## Define which waveform we want to use
-GRwf_name = 'TaylorF2'
-GRapproximant = lalsim.GetApproximantFromString( GRwf_name )
+approximant = lalsim.GetApproximantFromString( 'TaylorF2' )
 
-waveFlags = SimInspiralCreateWaveformFlags()
-
-# Use all PN phase terms and neglect amplitude ones.
-amplitudeO = 0
-phaseO = -1
+### lalpars
+lalpars = lal.CreateDict()
 
 ## build the waveforms!
-hfplus, hfcross = lalsim.SimInspiralChooseFDWaveform(phiRef, deltaF,  m1, m2, s1x, s1y, s1z, s2x, s2y, s2z, \
-                      f_min, f_max, f_ref, r, iota, lambda1, lambda2, waveFlags, nonGRparams, amplitudeO, phaseO, approximant)
-freqs = np.array([hfplus.f0+i*hfplus.deltaF for i in np.arange(hfplus.data.length)])
+hfp, hfx = lalsim.SimInspiralChooseFDWaveform(
+    m1, m2, 
+    s1x, s1y, s1z, 
+    s2x, s2y, s2z, 
+    distance, 
+    iota, 
+    phiRef, 
+    longAscNodes, 
+    eccentricity, 
+    meanPerAno, 
+    deltaF, 
+    f_min, 
+    f_max, 
+    f_ref, 
+    lalpars, 
+    approximant,
+)
+
+freqs = np.array([hfp.f0+i*hfp.deltaF for i in np.arange(hfp.data.length)])
+times = np.arange(length+1)*deltaT
+times -= times[-1]
 
 #-------------------------------------------------
 
@@ -158,21 +164,139 @@ for ind, (theta, phi, psi) in enumerate(opts.theta_phi_psi):
 
     # compute zero-frequency response
     Fp0, Fx0 = ant.const_antenna_response([theta], [phi], [psi], opts.ex, opts.ey)
-    signal0 = Fp0*hfplus.data.data + Fx0*hfcross.data.data
+    sf0 = Fp0*hfp.data.data + Fx0*hfx.data.data
 
     # compute correct response
-    Fp, Fx = ant.antenna_response([theta], [phi], [psi], opts.ex, opts.ey, opts.q, T=opts.T, freqs=freqs)
+    Fp, Fx = ant.antenna_response([theta], [phi], [psi], opts.ex, opts.ey, T=opts.T, freqs=freqs)
     Fp = Fp.flatten()
     Fx = Fx.flatten()
-    signal = Fp*hfplus.data.data + Fx*hfcross.data.data
+    sf = Fp*hfp.data.data + Fx*hfx.data.data
 
-    raise NotImplementedError, '''\
-need to take an iFFT of the signal to get the time-domain waveform'''
-
-    ### plot waveforms
+    # plot in frequency domain
     if opts.Verbose:
-        print "        plotting"
+        print "        plotting in freq domain"
 
-    raise NotImplementedError, '''\
-plot the time-domain data on the same axes
-also want to plot in the frequency domain (bode plot?)'''
+    fig = plt.figure()
+    mag_ax = plt.subplot(2,1,1)
+    phs_ax = plt.subplot(2,1,2)
+
+    mag_ax.plot(freqs, np.abs(sf0), color='b', alpha=0.5, label='$F_+(0)$, $F_\\times(0)$')
+    mag_ax.plot(freqs, np.abs(sf), color='r', alpha=0.5, label='$F_+(f)$, $F_\\times(f)$')
+
+    phs_ax.plot(freqs, np.arctan2(sf0.imag, sf0.real)*rad2deg, 'b', alpha=0.5, label='$F_+(0)$, $F_\\times(0)$')
+    phs_ax.plot(freqs, np.arctan2(sf.imag, sf.real)*rad2deg, 'r', alpha=0.5, label='$F_+(f)$, $F_\\times(f)$')
+
+    plt.setp(mag_ax.get_xticklabels(), visible=False)
+    phs_ax.set_xlabel('$f$ [Hz]')
+
+    mag_ax.set_ylabel('$|\\tilde{h}(f)|$')
+    phs_ax.set_ylabel('phase $\\tilde{h}(f)$ [$^\circ$]')
+
+    mag_ax.grid(True, which='both')
+    phs_ax.grid(True, which='both')
+
+    mag_ax.set_yscale('log')
+    mag_ax.set_xscale('log')
+
+    phs_ax.set_xscale('log')
+
+    mag_ax.legend(loc='best')
+
+    mag_ax.set_xlim(xmin=opts.plot_fmin, xmax=freqs[-1])
+    phs_ax.set_xlim(mag_ax.get_xlim())
+
+    plt.subplots_adjust(hspace=0.05)
+
+    figname = "%s/waveform-freq_%04d%s.png"%(opts.output_dir, ind, opts.tag)
+    if opts.verbose:
+        print "    "+figname
+    fig.savefig(figname)
+    plt.close(fig)
+
+    #---
+
+    fig = plt.figure()
+    mag_ax = plt.subplot(2,1,1)
+    phs_ax = plt.subplot(2,1,2)
+
+    mag_ax.plot(freqs, np.abs(sf0-sf), color='b', alpha=0.5)
+
+    phs_ax.plot(freqs, np.arctan2(sf0.imag-sf.imag, sf0.real-sf.real)*rad2deg, 'b', alpha=0.5)
+
+    plt.setp(mag_ax.get_xticklabels(), visible=False)
+    phs_ax.set_xlabel('$f$ [Hz]')
+
+    mag_ax.set_ylabel('$|\\tilde{h}_0(f) - \\tilde{h}(f)|$')
+    phs_ax.set_ylabel('phase $\\tilde{h}(f) - \\tilde{h}(f)$ [$^\circ$]')
+
+    mag_ax.grid(True, which='both')
+    phs_ax.grid(True, which='both')
+
+    mag_ax.set_yscale('log')
+    mag_ax.set_xscale('log')
+
+    phs_ax.set_xscale('log')
+
+    mag_ax.set_xlim(xmin=opts.plot_fmin, xmax=freqs[-1])
+    phs_ax.set_xlim(mag_ax.get_xlim())
+
+    plt.subplots_adjust(hspace=0.05)
+
+    figname = "%s/residual-freq_%04d%s.png"%(opts.output_dir, ind, opts.tag)
+    if opts.verbose:
+        print "    "+figname
+    fig.savefig(figname)
+    plt.close(fig)
+
+    # iFFT to get back to the time-domain
+    if opts.Verbose:
+        print "        transforming from frequency domain to time domain"
+
+    print "WARNING: there's something wrong with my iFFT, so there are artifacts in the time-domain signals"
+
+    st0 = np.fft.ifft( np.fft.ifftshift(np.concatenate([np.conjugate(sf0[::-1][:-1]), sf0])) ).real ### only take the real part
+    st = np.fft.ifft( np.fft.ifftshift(np.concatenate([np.conjugate(sf[::-1][:-1]), sf])) ).real    ### imag << real, as expected
+
+    ### plot in time domain
+    if opts.Verbose:
+        print "        plotting in time domain"
+
+    fig = plt.figure()
+    ax = fig.gca()
+
+    ax.plot(times, st0, 'b', alpha=0.5, label='$F_+(0)$, $F_\\times(0)$')
+    ax.plot(times, st, 'r', alpha=0.5, label='$F_+(f)$, $F_\\times(f)$')
+
+    ax.set_xlabel('$t$ [sec]')
+    ax.set_ylabel('$h(t)$')
+
+    ax.grid(True, which='both')
+    ax.legend(loc='best')
+
+    ax.set_xlim(xmin=opts.plot_tmin, xmax=-0.1*opts.plot_tmin)
+
+    figname = "%s/waveform-time_%04d%s.png"%(opts.output_dir, ind, opts.tag)
+    if opts.verbose:
+        print "    "+figname
+    fig.savefig( figname )
+    plt.close(fig)
+
+    #---
+
+    fig = plt.figure()
+    ax = fig.gca()
+
+    ax.plot(times, st0-st, 'b', alpha=0.5)
+
+    ax.set_xlabel('$t$ [sec]')
+    ax.set_ylabel('$h_0(t) - h(t)$')
+
+    ax.grid(True, which='both')
+
+    ax.set_xlim(xmin=opts.plot_tmin, xmax=-0.1*opts.plot_tmin)
+
+    figname = "%s/residual-time_%04d%s.png"%(opts.output_dir, ind, opts.tag)
+    if opts.verbose:
+        print "    "+figname
+    fig.savefig( figname )
+    plt.close(fig)
