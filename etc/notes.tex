@@ -2,6 +2,7 @@
 %-------------------------------------------------
 
 \usepackage{amsmath}
+\usepackage{amssymb}
 \usepackage{amsfonts}
 
 \usepackage{color}
@@ -40,7 +41,7 @@ Furthermore, we assume there is a single fourier component of the GW strain, so 
 Consider the outbound trip.
 In this case, $dx/dt > 0$ and
 \begin{equation}
-    dt = \sqrt{1+h}dx = (1 + \frac{1}{2}h + O(h^2))dx
+    dt = \sqrt{1+h}\, dx = (1 + \frac{1}{2}h + O(h^2))dx
 \end{equation}
 We define $d\tau = dt-dx$ and note that $\tau$ denotes the phase of light as it propagates down the arm.
 Worldlines of constant $\tau$ represent worldlines of constant phase.
@@ -75,7 +76,7 @@ We now assume $T^\prime - 2L \ll 1/\omega$ and obtain
 
 We recognize $h_0 e^{i\omega(t_0-n_ex_0)}$ as the strain projected along the arm at the space-time coordinates corresponding to the start of the round-trip, and can therefore express this as
 \begin{equation}
-    \frac{\delta T}{L} = \frac{1}{-2i\omega L} \left(\frac{1-e^{i\omega(1-n_e)L}}{1-n_e} - e^{2i\omega L}\frac{1-e^{-i\omega(1+n_e)L}}{1+n_e} \right) e_i e_j h_{ij}
+    \frac{\delta T}{L} = \frac{1}{-2i\omega L} \left(\frac{1-e^{i\omega(1-n_e)L}}{1-n_e} - e^{2i\omega L}\frac{1-e^{-i\omega(1+n_e)L}}{1+n_e} \right) e_i e_j h^{ij}
 \end{equation}
 This yields the transfer function from the astrophysical signal to the observed fractional change in round-trip travel time. 
 Furthermore, if we define
@@ -97,7 +98,7 @@ with $e_+$ and $e_\times$ defining the polarization tensors for the $+$ and $\ti
 This gives us a coordinate-independent expression for the antenna patterns which includes frequency-dependent effects for a Michelson interferometer.
 
 %-----------
-\subsection*{Matt Evan's memorial expression for $D(\omega, n_e)$}
+\subsection*{Matt Evan Memorial Expression for $D(\omega, n_e)$}
 
 We note that with some elbow grease, we can massage the expression for $D(\omega, n_e)$ into
 
@@ -109,12 +110,46 @@ where $\sinc x = x^{-1} \sin x$.
 %------------------------
 \section*{Fabry-Perot cavity}
 
-\textcolor{red}{
-Derive the change in the reflected light's phase coming out of a Fabry-Perot cavity and how it depends on the gravitaitonal-wave strain incident on the detector.
-Should be able to derive an analogous expression for $D_{ij}$, which we should then use in all our calculations.
-Note, the actual IFO readout is more complicated than this, but the majority of the strain's influence will be felt in the long Fabry-Perot cavities and therefore they should dominate $D_{ij}$.
-}
+Let us now consider the response of the reflected light from a Fabry-Perot cavity. 
+In this case, we have 3 electric fields of interest: the incident field $E_\mathrm{inc}$, the reflected field $E_\mathrm{ref}$, and the circulating field just within the cavity $E$.
+\textcolor{red}{Add a figure to clarify what we mean?}
+We expect these to be related by
+\begin{align}
+    E & = i t_a E_\mathrm{inc} + r_a r_b e^{-\alpha -i\phi} E \\
+    E_\mathrm{ref} & = r_a E_\mathrm{inc} + i t_a r_b e^{-\alpha -i\phi} E
+\end{align}
+where mirror $a$ is the one on which the incident light falls, $\alpha$ measures the losses within the cavity, and $\phi$ represents the phase accumulated by the light during one round-trip down the cavity and back.
+This tells us that 
+\begin{equation}
+    \frac{E_\mathrm{ref}}{E_\mathrm{inc}} = r_a + i t_a r_b e^{-\alpha -i\phi} \frac{i t_a}{1 - r_a r_b e^{-\alpha -i\phi}}
+\end{equation}
+Now, in the transverse-traceless gage, coordinate time is proper time for all observers.
+This means that the amount of phase accumulated by the light in one round trip is $\nu T^\prime$, where the light's angular frequency is $\nu$ and $T^\prime$ is defined by our analysis of the Michelson case.
+\begin{align}
+    e^{i\phi} & = e^{-2i\nu L}\left(1 + h_0 e^{i\psi_0} (-i\omega L)D(\omega, n_e)\right)^{\nu/\omega} \\
+              & \approx e^{-2i\nu L - i\nu L h_0 e^{i\psi_0} D(\omega, n_e)}
+\end{align}
+where $\psi_0 = \omega(t_0 - n_e x_0)$. 
+Inserting this into our expression for $E_\mathrm{ref}$ yields
+\begin{equation}
+    \frac{E_\mathrm{ref}}{E_\mathrm{inc}} = r_a - \frac{t_a^2 r_b e^{-\alpha - 2i\nu L}}{1 - r_a r_b e^{-\alpha-2i\nu L}} \left( 1 + \frac{i\nu L D(\omega, n_e) h_0 e^{i\psi_0}}{1 - r_a r_b e^{-\alpha-2i\nu L}} + O(h_0^2) \right)
+\end{equation}
 
+We expect the interferometer's readout to be
+\begin{align}
+    \delta V & = \frac{\left(E_\mathrm{ref}\right)_x - \left(E_\mathrm{ref}\right)_y}{E_\mathrm{inc}} \\
+             & = \frac{r_a - t_a r_b e^{-\alpha -2i\nu L}}{1 - r_a r_b e^{-\alpha-2i\nu L}}\left(\frac{i\nu L}{1 - r_a r_b e^{-\alpha-2i\nu L}}\right)\left( D(\omega, n_\alpha e_x^\alpha) e_x^i e_x^j - D(\omega, n_\beta e_y^\beta) e_y^i e_y^j \right) h^{ij}
+\end{align}
+where we've assumed $L_x=L_y=L$ and $|\vec{x}_0 - \vec{y}_0|\omega/c \lesssim 10^{-4} \ll 1$ so that the starting phases of the gravitational wave at both the $x$ and $y$ arms are equal. 
+In this case, we again see that the output can be written in the form
+\begin{equation}
+    \delta V = H(\nu L) D(\omega, \hat{n}, \hat{e}_x, \hat{e}_y)_{ij} h^{ij}
+\end{equation}
+where $D_{ij}$ is identical to the Michelson case. 
+We assume the output is correctly calibrated so that $H(\nu L)$ is correctly compensated.
+This means that we need only concern ourselves with $D_{ij}$ when projecting signals into the detector output.
+
+Furthermore, we expect the only significant directional dependence will come from the long Fabry-Perot cavities and therefore assume that $D_{ij}$ will capture all the directional dependence regardless of what other cavities the signal is passed through before measurement (e.g.; signal-recyling).
 
 %-------------------------------------------------
 \end{document}
