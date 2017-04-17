@@ -131,7 +131,7 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
     if opts.Verbose:
         print '  %d / %d'%(ind+1, opts.Nfreq)
 
-    title = "$fT = %.3f$"%(freqs[ind])
+    title = "$fL/c = %.3f$"%(freqs[ind])
 
     #--- total magnitude
     fig = plt.figure()

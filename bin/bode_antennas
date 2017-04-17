@@ -124,7 +124,7 @@ for ind, (theta, phi) in enumerate(opts.theta_phi):
     phs_ax.plot( freqs, phs(Fp)*rad2deg, color='b', label='$F_+$' )
     phs_ax.plot( freqs, phs(Fx)*rad2deg, color='r', label='$F_\\times$' )
 
-    phs_ax.set_xlabel('$fT$')
+    phs_ax.set_xlabel('$fL/c$')
 
     if opts.norm2zeroFreq:
         mag_ax.set_ylabel('normalized magnitude')
