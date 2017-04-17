@@ -19,6 +19,8 @@ import numpy as np
 def __D__( freqsT, N ):
     '''
     helper function that returns the part of the frequency dependence that depends on the arm's directions
+
+    DEPRECATED in favor of more explicit version which allows us to check divergences cleanly
     '''
     if isinstance(freqsT, (int, float, complex)):
         if freqsT==0:
@@ -34,11 +36,9 @@ def __D__( freqsT, N ):
     phi = freqsT/1j
     return np.exp(-freqsT)/(1-N**2) * ( np.sinc(phi/np.pi) + n/(freqsT)*(np.cos(phi) - np.exp(freqsT*n)))
 
-def __D__deprecated( freqsT, twoFreqsT, exp_twoFreqsT, N ):
+def __D__( freqsT, N ):
     '''
     helper function that returns the part of the frequency dependence that depends on the arm's directions
-
-    DEPRECATED in favor of Matt's more condensed version
     '''
     if isinstance(freqsT, (int, float, complex)):
         if freqsT==0:
@@ -51,8 +51,8 @@ def __D__deprecated( freqsT, twoFreqsT, exp_twoFreqsT, N ):
     b = 2-a
 
     freqsT = np.outer(freqsT, np.ones_like(N))
-    twoFreqsT = np.outer(twoFreqsT, np.ones_like(N))
-    exp_twoFreqsT = np.outer(exp_twoFreqsT, np.ones_like(N))
+    twoFreqsT = 2*freqsT
+    exp_twoFreqsT = np.exp(-twoFreqsT)
 
     ### assemble things carefully so we don't have to worry about nans later
     ans = np.zeros_like(a)
@@ -108,8 +108,6 @@ def antenna_response( theta, phi, psi, ex, ey, T=1., freqs=0. ):
 
     ### compute detector matrix
     freqsT = 2j*np.pi*freqs*T
-    twoFreqsT = 2*freqsT
-    exp_twoFreqsT = np.exp(-twoFreqsT)
 
     # factor of 1/2 is for normalization
     dV_xx = 0.5 * __D__(freqsT, np.sum(np.outer(ex, np.ones_like(theta))*n, axis=0))
