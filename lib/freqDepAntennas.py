@@ -16,7 +16,7 @@ import numpy as np
 
 #--- helper functions
 
-def __D__( freqsT, twoFreqsT, exp_twoFreqsT, N ):
+def __D__( freqsT, N ):
     '''
     helper function that returns the part of the frequency dependence that depends on the arm's directions
     '''
@@ -28,8 +28,24 @@ def __D__( freqsT, twoFreqsT, exp_twoFreqsT, N ):
         return np.ones((len(freqsT), len(N)), dtype=complex)
 
     #--- matt's condensed version
-#    phi = freqsT/1j
-#    return np.exp(-freqsT)/(1-N**2) * ( np.sinc(phi/np.pi) + N/(freqsT)*(np.cos(phi)-np.exp(freqsT*N)))
+    n = np.outer(np.ones_like(freqsT), N)
+    freqsT = np.outer(freqsT, np.ones_like(N))
+
+    phi = freqsT/1j
+    return np.exp(-freqsT)/(1-N**2) * ( np.sinc(phi/np.pi) + n/(freqsT)*(np.cos(phi) - np.exp(freqsT*n)))
+
+def __D__deprecated( freqsT, twoFreqsT, exp_twoFreqsT, N ):
+    '''
+    helper function that returns the part of the frequency dependence that depends on the arm's directions
+
+    DEPRECATED in favor of Matt's more condensed version
+    '''
+    if isinstance(freqsT, (int, float, complex)):
+        if freqsT==0:
+            return np.ones_like(N, dtype=complex)
+
+    elif np.all(freqsT==0):
+        return np.ones((len(freqsT), len(N)), dtype=complex)
 
     a = 1-np.outer(np.ones_like(freqsT), N)
     b = 2-a
@@ -96,8 +112,8 @@ def antenna_response( theta, phi, psi, ex, ey, T=1., freqs=0. ):
     exp_twoFreqsT = np.exp(-twoFreqsT)
 
     # factor of 1/2 is for normalization
-    dV_xx = 0.5 * __D__(freqsT, twoFreqsT, exp_twoFreqsT, np.sum(np.outer(ex, np.ones_like(theta))*n, axis=0))
-    dV_yy = 0.5 * __D__(freqsT, twoFreqsT, exp_twoFreqsT, np.sum(np.outer(ey, np.ones_like(theta))*n, axis=0))
+    dV_xx = 0.5 * __D__(freqsT, np.sum(np.outer(ex, np.ones_like(theta))*n, axis=0))
+    dV_yy = 0.5 * __D__(freqsT, np.sum(np.outer(ey, np.ones_like(theta))*n, axis=0))
 
     ### assemble these parts into antenna responses
     Fp = 0.
