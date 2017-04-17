@@ -74,7 +74,7 @@ parser.add_option('', '--theta-phi-psi', nargs=3, default=[], type='float', acti
 parser.add_option('', '--ex', default=[], nargs=3, type='float')
 parser.add_option('', '--ey', default=[], nargs=3, type='float')
 
-parser.add_option('-L', '--L', default=4e4, type='float',
+parser.add_option('-L', '--L', default=4e3, type='float',
     help='the length of the arm, in meters')
 
 parser.add_option('', '--plot-fmin', default=30, type='float')
