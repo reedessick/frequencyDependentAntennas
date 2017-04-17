@@ -1,0 +1,108 @@
+\documentclass{article}
+%-------------------------------------------------
+
+\usepackage{amsmath}
+\usepackage{amsfonts}
+
+\usepackage{color}
+
+%-------------------------------------------------
+\begin{document}
+%-------------------------------------------------
+
+%------------------------
+\section*{Michaelson Interferometer}
+
+Consider a plane wave propagating in the $\hat{n}$ direction
+\begin{equation}
+    h_{\mu\nu} = h_{\mu\nu}(t-n_i r^i)
+\end{equation}
+Furthermore, assume the arm is pointed in the $\hat{e}$ direction, so that the component of strain along the arm is given by
+\begin{equation}
+    h = h_{\mu\nu}e^\mu e^\nu = h(t-n_i r^i)
+\end{equation}
+We further consider motion only along the $\hat{e}$ direction, so we are interest in
+\begin{equation}
+    h = h(t-n_i e^i x) = h(t-n_e x)
+\end{equation}
+where $x$ is the distance along the arm and we've defined $n_e\equiv n_i e^i$.
+Now, we know light will follow a null geodescic, so that
+\begin{equation}
+    dt^2 = (1+h)dx^2
+\end{equation}
+Furthermore, we assume there is a single fourier component of the GW strain, so that
+\begin{equation}
+    h = h_0 e^{i\omega(t-n_e x)}
+\end{equation}
+
+Consider the outbound trip.
+In this case, $dx/dt > 0$ and
+\begin{equation}
+    dt = \sqrt{1+h}dx = (1 + \frac{1}{2}h + O(h^2))dx
+\end{equation}
+We define $d\tau = dt-dx$ and note that $\tau$ denotes the phase of light as it propagates down the arm.
+Worldlines of constant $\tau$ represent worldlines of constant phase.
+We assume $h\ll1$, and obtain
+\begin{align}
+    \int\limits_{t_0-x_0}^{T+t_0 - (L+x_0)} d\tau\, e^{-i\omega\tau} & = \frac{h_0}{2} \int\limits_{x_0}^{L+x_0} dx\, e^{i\omega(1-n_e)x} \\
+    \frac{e^{-i\omega(t_0-x_0)}}{-i\omega}\left(e^{-i\omega(T-L)} - 1\right) & = \frac{h_0}{2}\frac{e^{i\omega(1-n_e)x_0}}{i\omega(1-n_e)}\left( e^{i\omega(1-n_e)L} - 1 \right)
+\end{align}
+
+For the return trip, we know $dx/dt < 0$ and define $d\tau^\prime = dt + dx$.
+Again, $\tau^\prime$ is the phase of the light on the return path.
+This yields
+\begin{align}
+    \int\limits_{T+t_0+L+x_0}^{T^\prime+t_0+x_0} d\tau^\prime\, e^{-i\omega\tau^\prime} & = -\frac{h_0}{2} \int\limits_{L+x_0}^{x_0} dx\, e^{-i\omega(1+n_e)x} \\
+    \frac{e^{-i\omega(t_0+x_0)}}{-i\omega}\left(e^{-i\omega T^\prime} - e^{-i\omega(T+L)}\right) & = - \frac{h_0}{2} \frac{e^{-i\omega(1+n_e)x_0}}{-i\omega(1+n_e)}\left( 1 - e^{-i\omega(1+n_e)L}\right)
+\end{align}
+We are interested in the change in round-trip time relative to the unperturbed state ($(T^\prime - 2L)/T \sim h_0$), and therefore write
+\begin{align}
+    e^{-i\omega(T^\prime-2L)} - e^{-i\omega(T-L)} & = -\frac{h_0}{2} e^{i\omega(t_0+x_0+2L)} \frac{e^{-i\omega(1+n_e)x_0}}{1+n_e}\left(1-e^{-i\omega(1+n_e)L}\right) \\
+    e^{-i\omega(T-L)} & = 1 - \frac{h_0}{2}e^{i\omega(t_0-x_0)}\frac{e^{i\omega(1-n_e)x_0}}{1-n_e}\left(e^{i\omega(1-n_e)L} - 1\right)
+\end{align}
+which yields
+\begin{align}
+    e^{-i\omega(T^\prime-2L)} - 1 & = \frac{h_0}{2}\left( e^{i\omega(t_0-x_0 + (1-n_e)x_0)}\left(\frac{1-e^{i\omega(1-n_e)L}}{1-n_e}\right) \right. \\
+                                  & \quad \quad \quad \quad \left. - e^{i\omega(t_0+x_0+2L - (1+n_e)x_0} \left(\frac{1-e^{-i\omega(1+n_e)L}}{1+n_e}\right) \right) \\
+                                  & = \frac{h_0}{2} e^{i\omega(t_0-n_ex_0)} \left( \frac{1-e^{i\omega(1-n_e)L}}{1-n_e} - e^{2i\omega L}\frac{1-e^{-i\omega(1+n_e)L}}{1+n_e} \right)
+\end{align}
+We now assume $T^\prime - 2L \ll 1/\omega$ and obtain
+\begin{equation}
+    \frac{T^\prime - 2L}{L} = \frac{h_0 e^{i\omega(t_0-n_ex_0)}}{-2i\omega L} \left(\frac{1-e^{i\omega(1-n_e)L}}{1-n_e} - e^{2i\omega L}\frac{1-e^{-i\omega(1+n_e)L}}{1+n_e} \right)
+\end{equation}
+
+We recognize $h_0 e^{i\omega(t_0-n_ex_0)}$ as the strain projected along the arm at the space-time coordinates corresponding to the start of the round-trip, and can therefore express this as
+\begin{equation}
+    \frac{\delta T}{L} = \frac{1}{-2i\omega L} \left(\frac{1-e^{i\omega(1-n_e)L}}{1-n_e} - e^{2i\omega L}\frac{1-e^{-i\omega(1+n_e)L}}{1+n_e} \right) e_i e_j h_{ij}
+\end{equation}
+This yields the transfer function from the astrophysical signal to the observed fractional change in round-trip travel time. 
+Furthermore, if we define
+\begin{equation}
+    D(\omega, n_e) \equiv \frac{1}{-2i\omega L} \left(\frac{1-e^{i\omega(1-n_e)L}}{1-n_e} - e^{2i\omega L}\frac{1-e^{-i\omega(1+n_e)L}}{1+n_e} \right),
+\end{equation}
+we can complactly report the output of an interferometer as
+\begin{align}
+    \delta V & = \frac{1}{2}\left( D(\omega, n_\alpha e_x^\alpha) e_x^i e_x^j - D(\omega, n_\beta e_y^\beta) e_y^i e_y^j \right) h_{ij} \\
+             & = D^{ij} h_{ij}
+\end{align}
+where we have inserted a factor of $1/2$ so that $\delta V\sim h$ instead of $\sim 2h$ (the maximum of the antenna patterns is 1).
+This yields standard expressions for the antenna patterns as follows
+\begin{align}
+    F_+ & = D_{ij} e_+^{ij} \\
+    F_\times & = D_{ij} e_\times^{ij}
+\end{align}
+with $e_+$ and $e_\times$ defining the polarization tensors for the $+$ and $\times$ polarizations, respectively.
+This gives us a coordinate-independent expression for the antenna patterns which includes frequency-dependent effects for a Michelson interferometer.
+
+%------------------------
+\section*{Fabry-Perot cavity}
+
+\textcolor{red}{
+Derive the change in the reflected light's phase coming out of a Fabry-Perot cavity and how it depends on the gravitaitonal-wave strain incident on the detector.
+Should be able to derive an analogous expression for $D_{ij}$, which we should then use in all our calculations.
+Note, the actual IFO readout is more complicated than this, but the majority of the strain's influence will be felt in the long Fabry-Perot cavities and therefore they should dominate $D_{ij}$.
+}
+
+
+%-------------------------------------------------
+\end{document}
