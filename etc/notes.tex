@@ -102,10 +102,9 @@ This gives us a coordinate-independent expression for the antenna patterns which
 We note that with some elbow grease, we can massage the expression for $D(\omega, n_e)$ into
 
 \begin{equation}
-    D(\omega, n_e) = \frac{e^{i\omega L}}{1-n_e^2}\left( \sinc(\omega L) + \frac{n_e}{-i\omega L} \left( \cos(\omega L) - \frac{e^{-i\omega n_e L}}{i\omega L}\right)\right)
+    D(\omega, n_e) = \frac{e^{i\omega L}}{1-n_e^2}\left( \sinc(\omega L) + \frac{n_e}{-i\omega L} \left( \cos(\omega L) - e^{-i\omega n_e L}\right)\right)
 \end{equation}
 where $\sinc x = x^{-1} \sin x$.
-This may be more tractable computationally (fewer numerical divergences we have to check explicitly) and should be used throughout the actual implementation.
 
 %------------------------
 \section*{Fabry-Perot cavity}
