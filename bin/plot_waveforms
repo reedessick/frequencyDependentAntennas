@@ -16,7 +16,7 @@ from lal.lal import LIGOTimeGPS
 from lal.lal import MSUN_SI as LAL_MSUN_SI
 from lal.lal import PC_SI as LAL_PC_SI
 from lal.lal import C_SI as LAL_C_SI
-from lal.lal import DimensionlessUnit
+from lal.lal import G_SI as LAL_G_SI
 
 import lalsimulation.lalsimulation as lalsim
 
@@ -77,6 +77,14 @@ parser.add_option('', '--ey', default=[], nargs=3, type='float')
 parser.add_option('-L', '--L', default=4e3, type='float',
     help='the length of the arm, in meters')
 
+parser.add_option('', '--m1', default=2.0, type='float',
+    help='DEFAULT=2.0')
+parser.add_option('', '--m2', default=1.4, type='float',
+    help="DEFAULT=1.4")
+
+parser.add_option('', '--approximant', default='TaylorF2', type='string',
+    help='DEFAULT=TaylorF2')
+
 parser.add_option('', '--plot-fmin', default=30, type='float')
 parser.add_option('', '--plot-tmin', default=-5, type='float')
 
@@ -128,8 +136,8 @@ eccentricity = 0.
 meanPerAno = 0.
 
 # CBC params:
-m1 = 1.4*LAL_MSUN_SI
-m2 = 2.0*LAL_MSUN_SI
+m1 = opts.m1*LAL_MSUN_SI
+m2 = opts.m2*LAL_MSUN_SI
 
 #spins
 s1x = 0.0
@@ -144,7 +152,7 @@ distance = 450*LAL_PC_SI*1.0e6
 iota = np.pi*2/6
 
 ## Define which waveform we want to use
-approximant = lalsim.GetApproximantFromString( 'TaylorF2' )
+approximant = lalsim.GetApproximantFromString( opts.approximant )
 
 ### lalpars
 lalpars = lal.CreateDict()
@@ -171,6 +179,13 @@ hfp, hfx = lalsim.SimInspiralChooseFDWaveform(
 freqs = np.array([hfp.f0+i*hfp.deltaF for i in np.arange(hfp.data.length)])
 times = np.arange(length+1)*deltaT
 times -= times[-1]
+
+### zero waveforms beyond isco
+if opts.approximant=="TaylorF2":
+    isco = LAL_C_SI**3/(LAL_G_SI*(m1+m2)) / (np.pi * 6**(3./2))
+    truth = freqs > isco
+    hfp.data.data[truth] = 0
+    hfx.data.data[truth] = 0
 
 #-------------------------------------------------
 
