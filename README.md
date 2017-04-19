@@ -15,6 +15,9 @@ This module implements an expression for the frequency-dependent antenna respons
         - aLIGO LHO + aLIGO LLO + aVirgo
         - aLIGO LHO + CE (at LLO)
         - ET + CE?
+  - consider how directionality and frequency dependence of anteanna patterns could affect how templated searches work
+    - phase involved in antenna patterns (which are different for h+ and hx) could mean we cannot simply search for a single template?
+    - this could be compounded by a directional dependence, meaning one has to perform an explicit all sky search?
 
 ## References
 
