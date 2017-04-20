@@ -16,25 +16,25 @@ import numpy as np
 
 #--- helper functions
 
-def __D__( freqsT, N ):
-    '''
-    helper function that returns the part of the frequency dependence that depends on the arm's directions
-
-    DEPRECATED in favor of more explicit version which allows us to check divergences cleanly
-    '''
-    if isinstance(freqsT, (int, float, complex)):
-        if freqsT==0:
-            return np.ones_like(N, dtype=complex)
-
-    elif np.all(freqsT==0):
-        return np.ones((len(freqsT), len(N)), dtype=complex)
-
-    #--- matt's condensed version
-    n = np.outer(np.ones_like(freqsT), N)
-    freqsT = np.outer(freqsT, np.ones_like(N))
-
-    phi = freqsT/1j
-    return np.exp(-freqsT)/(1-N**2) * ( np.sinc(phi/np.pi) + n/(freqsT)*(np.cos(phi) - np.exp(freqsT*n)))
+#def __D__( freqsT, N ):
+#    '''
+#    helper function that returns the part of the frequency dependence that depends on the arm's directions
+#
+#    DEPRECATED in favor of more explicit version which allows us to check divergences cleanly
+#    '''
+#    if isinstance(freqsT, (int, float, complex)):
+#        if freqsT==0:
+#            return np.ones_like(N, dtype=complex)
+#
+#    elif np.all(freqsT==0):
+#        return np.ones((len(freqsT), len(N)), dtype=complex)
+#
+#    #--- matt's condensed version
+#    n = np.outer(np.ones_like(freqsT), N)
+#    freqsT = np.outer(freqsT, np.ones_like(N))
+#
+#    phi = freqsT/1j
+#    return np.exp(-freqsT)/(1-N**2) * ( np.sinc(phi/np.pi) + n/(freqsT)*(np.cos(phi) - np.exp(freqsT*n)))
 
 def __D__( freqsT, N ):
     '''
