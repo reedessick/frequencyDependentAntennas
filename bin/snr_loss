@@ -1,0 +1,173 @@
+#!/usr/bin/env python
+
+usage = "snr_loss [--options]"
+description = "maps out the loss of SNR associated with neglecting the correct antenna response as a function of source position, inclination, and polarization angle. We *always* inject with the correct antenna responses, but recover with both the correct and incorrect responses for comparison."
+author = "Reed Essick"
+
+#-------------------------------------------------
+
+import os
+
+import numpy as np
+import healpy as hp
+
+import freqDepAntennas as ant
+import simUtils as utils
+
+from optparse import OptionParser
+
+#-------------------------------------------------
+
+deg2rad = np.pi/180
+
+#-------------------------------------------------
+
+parser = OptionParser(usage=usage, description=description)
+
+parser.add_option('-v', '--verbose', default=False, action='store_true')
+
+parser.add_option('', '--nside', default=64, type='int',
+    help='the nside for --heatmap')
+parser.add_option('', '--N-psi', default=50, type='int', 
+    help='the number of grid points used to sample polarization angle. DEFAULT=50')
+parser.add_option('', '--N-iota', default=50, type='int', 
+    help='the number of grid points used to sample inclination angle. DEFAULT=50')
+
+parser.add_option('', '--ex', nargs=3, default=[1, 0, 0], type='float',
+    help='DEFAULT=1 0 0')
+parser.add_option('', '--ey', nargs=3, default=[0, 1, 0], type='float',
+    help='DEFAULT=0 1 0')
+parser.add_option('-L', '--L', default=4e3, type='float',
+    help='detector arm length in meters. DEFAULT=4e3')
+parser.add_option('', '--PSD', default='aLIGO', type='string',
+    help='either "aLIGO" or "aVirgo". DEFAULT=aLIGO')
+
+parser.add_option('', '--heatmap', default=False, action='store_true',
+    help='plot the mimimum, maximum, and mean SNR and SNR loss as a function of source location.')
+parser.add_option('', '--theta-phi', nargs=2, default=[], action='append', type='float',
+    help='specific theta phi source locations to be considered. All angles should be specified in degrees.')
+parser.add_option('', '--theta-phi-psi-iota', nargs=4, default=[], action='append', type='float',
+    help='for cumulative SNR figures. All angles should be specified in degrees.')
+
+parser.add_option('-o', '--output-dir', default='.', type='string')
+parser.add_option('-t', '--tag', default='', type='string')
+
+opts, args = parser.parse_args()
+
+if opts.tag:
+    opts.tag = "_"+opts.tag
+
+if not os.path.exists(opts.output_dir):
+    os.makedirs(opts.output_dir)
+
+#-------------------------------------------------
+
+if opts.verbose:
+    print( "setting up detector object" )
+if opts.PSD == 'aLIGO':
+    PSD = utils.aLIGO_design
+
+elif opts.PSD == 'aVirgo':
+    PSD = utils.aVirgo_design
+
+else:
+    raise ValueError, '--PSD=%s not understood'%opts.PSD
+
+detector = utils.Detector('fake', np.array(opts.ex), np.array(opts.ey), np.zeros((3,)), opts.L, PSD)
+
+#------------------------
+
+raise NotImplementedError, '''\
+generate waveform! but do not project it into hfp, hfx.
+    this should be a 1D vector and we should call it "h"
+need to define freqs
+'''
+
+#------------------------
+
+### draw samples for marginalizations
+psi_samples = np.linspace(0, np.pi, opts.N_psi+1)[:-1]
+iota_samples = np.linsapce(0,np.pi, opts.N_iota+1)[:-1]
+
+#------------------------
+
+### heatmap snr loss over the sky
+if opts.heatmap:
+    if opts.verbose:
+        print( 'generating heatmap of SNRs' )
+
+    npix = hp.nside2npix(opts.nside)
+    theta, phi = hp.pix2ang(opts.nside, npix)
+
+    good_min = np.empty((npix,), dtype=float)
+    good_max = np.empty((npix,), dtype=float)
+    good_mean = np.empty((npix,), dtype=float)
+
+    bad_min = np.empty((npix,), dtype=float)
+    bad_max = np.empty((npix,), dtype=float)
+    bad_mean = np.empty((npix,), dtype=float)
+
+    for ind, (theta, phi) in enumerate(zip(hp.pix2ang(opts.nside, npix))):
+        good = np.empty((opts.N_psi, opts.N_iota), dtype=float)
+        bad  = np.empty((opts.N_psi, opts.N_iota), dtype=float)
+        weights = np.ones((opts.N_psi, opts.N_iota), dtype=float) ### weight by the prior volume associated with each sample
+        
+        for knd, iota in enumerate(iota_samples): ### iterate over inclinations
+            ### compute prior weight
+            weights[:,knd] *= np.sin(iota)
+
+            for jnd, psi in enumerate(psi_samples): ### itereate over polarization angle
+
+                ### project into hx, hp
+                cos_iota = np.cos(iota)
+                hpf = h*(1.+cos_iota**2)/2.
+                hxf = h*cos_iota
+
+                ### compute SNR with and without the correct antenna responses (controlled with zeroFreq boolean kwarg)
+                good[jnd,knd] = utils.snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False)
+                bad[jnd,knd]  = utils.snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=True)
+
+        weights /= np.sum(weights)
+
+        good_min[ind] = np.min(good)
+        good_max[ind] = np.max(good)
+        good_mean[ind] = np.sum(good*weights)
+
+        bad_min[ind] = np.min(bad)
+        bad_max[ind] = np.max(bad)
+        bad_mean[ind] = np.sum(bad*weights)
+
+    raise NotImplementedError, '''\
+heatmap the min, max, mean, and mode for good and bad responses.
+Also take the ratio of the two? The difference? some sort of comparison metric
+'''
+
+#------------------------
+
+### plot distribution of snr loss at a few points in the sky
+for theta, phi in opts.theta_phi:
+    if opts.verbose:
+        print( 'generating distribution of SNRs as a function of psi, iota' )
+        print '    theta : %.3f deg'%theta
+        print '    phi   : %.3f deg'%phi
+
+    raise NotImplementedError, '''\
+repeat the heatmap analysis but for a few user-specified locations.
+plot the snr loss as a function of inclination and polarization angle
+'''
+
+#------------------------
+
+### plot cumulative snr at a few theta, phi, psi, iota combinations
+for theta, phi, psi, iota in opts.theta_phi_psi_iota:
+    if opts.verbose:
+        print( 'generating plots of accumulated snr as a function of frequency' )
+        print '    theta : %.3f deg'%theta
+        print '    phi   : %.3f deg'%phi
+        print '    psi   : %.3f deg'%psi
+        print '    iota  : %.3f deg'%iota
+
+    raise NotImplementedError, '''\
+plot the cumulative SNR accumulated as a function of frequency with and without the correct antenna patterns
+'''
+

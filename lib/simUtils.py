@@ -4,7 +4,6 @@ author = "Reed Essick"
 #-------------------------------------------------
 
 from lal.lal import C_SI as c
-from lal import lalsimulation as lalsim
 
 import numpy as np
 
@@ -52,11 +51,15 @@ class Detector(object):
         self.T = L/c
         self.PSD = PSD
 
-    def project(self, freqs, hpf, hxf, theta, phi, psi):
+    def project(self, freqs, hpf, hxf, theta, phi, psi, zeroFreq=False):
         """
         project strains into this detector
+        if zeroFreq, we use const_antenna_response instead of antenna_response
         """
-        Fp, Fx = ant.antenna_resopnse( theta, phi, psi, detector.ex, detector.ey, T=detector.T, freqs=freqs)
+        if zeroFreq:
+            Fp, Fx = ant.const_anteanna_response(theta, phi, psi, self.ex, self.ey)
+        else:
+            Fp, Fx = ant.antenna_resopnse(theta, phi, psi, self.ex, self.ey, T=self.T, freqs=freqs)
         return Fp*hpF + Fx*hxf
 
     def drawNoise(self, freqs):
@@ -96,23 +99,26 @@ Virgo = Detector(
 
 #-------------------------------------------------
 
-def snr( freqs, detector, data, hpf, hxf, theta, phi, psi ):
+def snr( freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False ):
     """
     computes the SNR of this template against this data
     """
-    template = detector.project(freqs, hpf, hxf, theta, phi, psi)
+    template = detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=zeroFreq)
     PSD = detector.PSD(freqs)
     deltaF = freqs[1]-freqs[0]
     return np.sum(deltaF*np.conjugate(data)*template/PSD).real / np.sum(deltaF*np.conjugate(template)*template/PSD)**0.5
 
-def cumsum_snr(freqs, detector, data, hpf, hxf, theta, phi, psi ):
+def cumsum_snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False ):
     """
     returns the cumulative sum of the snr as a function of frequency
     """
+    template = detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=zeroFreq)
+    PSD = detector.PSD(freqs)
+    deltaF = freqs[1]-freqs[0]
     return np.cumsum(deltaF*np.conjugate(data)*template/PSD).real / np.sum(deltaF*np.conjugate(template)*template/PSD)**0.5
 
-def lnLikelihood( freqs, detector, data, hpf, hxf, theta, phi, psi ):
+def lnLikelihood( freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False ):
     """
     log(likelihood) of this template against this data
     """
-    return 0.5*snr(freqs, PSD, data, hpf, hxf, theta, phi, psi)**2
+    return 0.5*snr(freqs, PSD, data, hpf, hxf, theta, phi, psi, zeroFreq=zeroFreq)**2
