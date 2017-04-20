@@ -81,13 +81,17 @@ raise NotImplementedError, '''\
 generate waveform! but do not project it into hfp, hfx.
     this should be a 1D vector and we should call it "h"
 need to define freqs
+
+need to define "data" for the detector? or should we do that within the loops?
+we'll get a sensible number if we just project the template into the data stream ourselves and call that data
+  -> is this what we really want to measure?
 '''
 
 #------------------------
 
 ### draw samples for marginalizations
 psi_samples = np.linspace(0, np.pi, opts.N_psi+1)[:-1]
-iota_samples = np.linsapce(0,np.pi, opts.N_iota+1)[:-1]
+iota_samples = np.arccos(np.linsapce(-1,1, opts.N_iota)) ### sample uniformly in cos(iota)
 
 #------------------------
 
@@ -110,32 +114,26 @@ if opts.heatmap:
     for ind, (theta, phi) in enumerate(zip(hp.pix2ang(opts.nside, npix))):
         good = np.empty((opts.N_psi, opts.N_iota), dtype=float)
         bad  = np.empty((opts.N_psi, opts.N_iota), dtype=float)
-        weights = np.ones((opts.N_psi, opts.N_iota), dtype=float) ### weight by the prior volume associated with each sample
         
         for knd, iota in enumerate(iota_samples): ### iterate over inclinations
-            ### compute prior weight
-            weights[:,knd] *= np.sin(iota)
-
             for jnd, psi in enumerate(psi_samples): ### itereate over polarization angle
 
                 ### project into hx, hp
                 cos_iota = np.cos(iota)
-                hpf = h*(1.+cos_iota**2)/2.
+                hpf = h*(1.+cos_iota**2)*0.5
                 hxf = h*cos_iota
 
                 ### compute SNR with and without the correct antenna responses (controlled with zeroFreq boolean kwarg)
                 good[jnd,knd] = utils.snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False)
                 bad[jnd,knd]  = utils.snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=True)
 
-        weights /= np.sum(weights)
-
         good_min[ind] = np.min(good)
         good_max[ind] = np.max(good)
-        good_mean[ind] = np.sum(good*weights)
+        good_mean[ind] = np.mean(good)
 
         bad_min[ind] = np.min(bad)
         bad_max[ind] = np.max(bad)
-        bad_mean[ind] = np.sum(bad*weights)
+        bad_mean[ind] = np.mean(bad)
 
     raise NotImplementedError, '''\
 heatmap the min, max, mean, and mode for good and bad responses.
@@ -150,10 +148,26 @@ for theta, phi in opts.theta_phi:
         print( 'generating distribution of SNRs as a function of psi, iota' )
         print '    theta : %.3f deg'%theta
         print '    phi   : %.3f deg'%phi
+    theta *= deg2rad
+    phi *= deg2rad
+
+    good = np.empty((opts.N_psi, opts.N_iota), dtype=float)
+    bad  = np.empty((opts.N_psi, opts.N_iota), dtype=float)
+
+    for knd, iota in enumerate(iota_samples):
+        for jnd, psi in enuemrate(psi_samples):
+            ### project into hx, hp
+            cos_iota = np.cos(iota)
+            hpf = h*(1.+cos_iota**2)*0.5
+            hxf = h*cos_iota
+
+            ### compute SNR with and without the correct antenna responses (controlled with zeroFreq boolean kwarg)
+            good[jnd,knd] = utils.snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False)
+            bad[jnd,knd]  = utils.snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=True)
 
     raise NotImplementedError, '''\
-repeat the heatmap analysis but for a few user-specified locations.
 plot the snr loss as a function of inclination and polarization angle
+just imshow on a cartesian grid?
 '''
 
 #------------------------
@@ -166,6 +180,18 @@ for theta, phi, psi, iota in opts.theta_phi_psi_iota:
         print '    phi   : %.3f deg'%phi
         print '    psi   : %.3f deg'%psi
         print '    iota  : %.3f deg'%iota
+    theta *= deg2rad
+    phi *= deg2rad
+    psi *= deg2rad
+    iota *= deg2rad
+
+    ### project into hx, hp
+    cos_iota = np.cos(iota)
+    hpf = h*(1+cos_iota**2)*0.5
+    hxf = h*cos_iota
+
+    good = utils.cumsum_snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False)
+    bad  = utils,cumsum_snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=True)
 
     raise NotImplementedError, '''\
 plot the cumulative SNR accumulated as a function of frequency with and without the correct antenna patterns
