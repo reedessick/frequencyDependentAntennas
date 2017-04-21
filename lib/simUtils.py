@@ -64,8 +64,12 @@ class Detector(object):
             Fp = Fp[:,0]
             Fx = Fx[:,0]
         ### overall phase delay from extra time-of-flight
-        phs = 2j*np.pi*freqs*self.r ### r is measured in seconds
-                                    ### FIXME: there could be a sign error here depending on our convention for FFT's...
+        ### r is measured in seconds
+        ### FIXME: there could be a sign error here depending on our convention for FFT's...
+        sinTheta = np.sin(theta)
+        n = -np.array([np.cos(phi)*sinTheta, np.sin(phi)*sinTheta, np.cos(theta)])
+        dt = np.sum(self.r*n)
+        phs = 2j*np.pi*freqs*dt
 
         return (Fp*hpf + Fx*hxf)*np.exp(phs)
 
@@ -73,8 +77,8 @@ class Detector(object):
         """
         simulate Gaussian noise from this detector's PSD
         """
-        amp = np.random.randn(freqs.shape)*self.PSD(freqs)**0.5
-        phs = np.random.rand(freqs.shape)
+        amp = np.random.randn(*freqs.shape)*self.PSD(freqs)**0.5
+        phs = np.random.rand(*freqs.shape)
         return amp*np.cos(phs) + 1j*amp*np.sin(phs)
 
 #------------------------

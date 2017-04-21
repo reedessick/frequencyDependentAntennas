@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 
-usage = "localize [--options]"
-description = "a quick sampler over extrinsic parameters to study the effects of frequency dependent antenna patterns on localization"
+usage = "localize [--options] theta phi psi iota distance"
+description = """\
+a quick sampler over extrinsic parameters to study the effects of frequency dependent antenna patterns on localization. 
+Angles specified as arguments should be in radians, unless --args-are-degrees is provided. 
+Distance should be in Mpc."""
 author = "Reed Essick"
 
 #-------------------------------------------------
@@ -56,7 +59,7 @@ Note: we will *always* inject the signal with the correct response, which accoun
 
 ### parameters about the samplers
 
-parser.add_option('-N', '--Nwalkers', default=100, type='int', 
+parser.add_option('-N', '--Nwalkers', default=250, type='int', 
     help='the number of walkers for the ensemble sampler')
 parser.add_option('-n', '--Nsteps', default=1000, type='int',
     help='the number of steps each walker will take')
@@ -69,32 +72,32 @@ parser.add_option('', '--max-distance', default=1000, type='float',
     help='in Mpc. DEFAULT=1000')
 
 ### parameters about the injected signal
-parser.add_option('', '--distance', default=100, type='float',
-    help='in Mpc. Default=100')
-
 parser.add_option('', '--m1', default=1.4, type='float',
     help='in Msun. DEFAULT=1.4')
 parser.add_option('', '--m2', default=1.4, type='float',
     help="in Msun. DEFAULT=1.4")
 
-parser.add_option('', '--sz1', default=0.0, type='float',
+parser.add_option('', '--s1z', default=0.0, type='float',
     help='DEFAULT=0')
-parser.add_option('', '--sz2', default=0.0, type='float',
+parser.add_option('', '--s2z', default=0.0, type='float',
     help='DEFAULT=0')
 
 parser.add_option('', '--phiRef', default=1.5*np.pi, type='float',
     help='in rad. DEFAULT=3*pi/2')
 
+parser.add_option('', '--args-are-degrees', default=False, action='store_true',
+    help='interpret angles specified as arguments in degrees instead of radians')
+
 ### signal processing params
 
-parser.add_option('', '--f-min', default=10, type='float',
+parser.add_option('', '--f-min', default=10., type='float',
     help='in Hz. DEFAULT=10')
-parser.add_option('', '--f-ref', default=40, type='float',
+parser.add_option('', '--f-ref', default=40., type='float',
     help='in Hz. DEFAULT=40')
 
-parser.add_option('', '--srate', default=4096, type='float',
+parser.add_option('', '--srate', default=4096., type='float',
     help='in Hz. DEFAULT=4096')
-parser.add_option('', '--seglen', default=64, type='float',
+parser.add_option('', '--seglen', default=64., type='float',
     help='in sec. DEFAULT=64')
 
 opts, args = parser.parse_args()
@@ -108,6 +111,15 @@ if opts.tag:
 assert len(opts.instrument), 'please supply at least one instrument\n%s'%usage
 assert np.all([known_detectors.has_key(ifo) for ifo in opts.instrument]), 'please supply only known ifos\n%s'%(', '.join(known_detectors.keys()))
 
+assert len(args)==5, 'please supply exactly 5 input arguments\n%s'%usage
+theta, phi, psi, iota, distance = [float(_) for _ in args]
+if opts.args_are_degrees:
+    rad2deg = 180/np.pi
+    theta *= rad2deg
+    phi *= rad2deg
+    psi *= rad2deg
+    iota *= rad2deg
+
 #-------------------------------------------------
 
 if opts.verbose:
@@ -115,11 +127,11 @@ if opts.verbose:
 # technical parameters for vector length
 length = opts.srate*opts.seglen 
 
-deltaT = 1/opts.srate
+deltaT = 1.0/opts.srate
 deltaF = 1.0 / (length * deltaT);
 
 #frequencies
-isco = LAL_C_SI**3/(LAL_G_SI*(m1+m2)) / (np.pi * 6**(3./2))
+isco = LAL_C_SI**3/(LAL_G_SI*(opts.m1+opts.m2)*LAL_MSUN_SI) / (np.pi * 6**(3./2))
 f_max = min(float(opts.srate)/2.0, isco) ### up to Nyquist or isco
 
 ## build the waveforms!
@@ -133,7 +145,7 @@ h = lalsim.SimInspiralTaylorF2(
     opts.f_min, 
     f_max, 
     opts.f_ref,
-    opts.distance*LAL_PC_SI*1e6,
+    distance*LAL_PC_SI*1e6,
     lal.CreateDict(),
 )
 freqs = np.array([h.f0+i*h.deltaF for i in np.arange(h.data.length)])
@@ -143,8 +155,8 @@ h = h.data.data ### I only care about the frequency vector
 detectors = [known_detectors[ifo] for ifo in opts.instrument]
 
 ### data
-hpf, hxf = utils.h2pol( h.data.data, opts.iota )
-data = [detector.drawNoise(freqs)+detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=False)]
+hpf, hxf = utils.h2pol( h, iota )
+data = [detector.drawNoise(freqs)+detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=False) for detector in detectors]
 
 ### set up arguments
 args = (freqs, data, h, detectors)
@@ -157,7 +169,15 @@ kwargs = {
 if opts.verbose:
     print( 'sampling from prior to get starting points' )
 sampler = emcee.EnsembleSampler(opts.Nwalkers, Ndim, utils.lnPrior, kwargs=kwargs)
-sampler.run(opts.Nwalkers, Ndim)
+
+p0 = np.random.rand(opts.Nwalkers, Ndim)
+p0[:,0] *= np.pi
+p0[:,1] *= 2*np.pi
+p0[:,2] *= 2*np.pi
+p0[:,3] *= np.pi
+p0[:,4] = opts.min_distance + (opts.max_distance-opts.min_distance)*p0[:,4]
+
+sampler.run_mcmc(p0, opts.NpriorSteps)
 p0 = sampler.chain[:,-1,:] ### take the last point from all walkers as the starting point
                            ### should represent the prior reasonably well
 
