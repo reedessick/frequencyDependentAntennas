@@ -235,8 +235,8 @@ if opts.heatmap:
         ('min with $F(0)$/min with $F(f)$',   'ratio', 'mollweide-ratio_min',  bad_min/good_min),
         ('max with $F(0)$/max with $F(f)$',   'ratio', 'mollweide-ratio_max',  bad_max/good_max),
         ('mean with $F(0)$/mean with $F(f)$', 'ratio', 'mollweide-ratio_mean', bad_mean/good_mean),
-        ('min with $F(f)$ - min with $F(0)$',   'difr', 'mollweide-diff_min',  good_min-bad_min),
-        ('max with $F(f)$ - max with $F(0)$',   'difr', 'mollweide-diff_max',  good_max-bad_max),
+        ('min with $F(f)$ - min with $F(0)$',   'diff', 'mollweide-diff_min',  good_min-bad_min),
+        ('max with $F(f)$ - max with $F(0)$',   'diff', 'mollweide-diff_max',  good_max-bad_max),
         ('mean with $F(f)$ - mean with $F(0)$', 'diff', 'mollweide-diff_mean', good_mean-bad_mean),
     ]:
         fig = plt.figure()
