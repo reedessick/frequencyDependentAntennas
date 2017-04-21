@@ -14,17 +14,36 @@ import healpy as hp
 import freqDepAntennas as ant
 import simUtils as utils
 
+from lal import lal
+from lal.lal import MSUN_SI as LAL_MSUN_SI
+from lal.lal import PC_SI as LAL_PC_SI
+from lal.lal import C_SI as LAL_C_SI
+from lal.lal import G_SI as LAL_G_SI
+
+import lalsimulation as lalsim
+
+import matplotlib
+matplotlib.use("Agg")
+from matplotlib import pyplot as plt
+plt.rcParams['text.usetex'] = True
+
+from lalinference import plot as lalinf_plot
+
 from optparse import OptionParser
 
 #-------------------------------------------------
 
 deg2rad = np.pi/180
+rad2deg = 1./deg2rad
+
+axpos = [0.03, 0.03, 0.94, 0.94]
 
 #-------------------------------------------------
 
 parser = OptionParser(usage=usage, description=description)
 
 parser.add_option('-v', '--verbose', default=False, action='store_true')
+parser.add_option('-V', '--Verbose', default=False, action='store_true')
 
 parser.add_option('', '--nside', default=64, type='int',
     help='the nside for --heatmap')
@@ -42,12 +61,19 @@ parser.add_option('-L', '--L', default=4e3, type='float',
 parser.add_option('', '--PSD', default='aLIGO', type='string',
     help='either "aLIGO" or "aVirgo". DEFAULT=aLIGO')
 
+parser.add_option('', '--m1', default=2.0, type='float',
+    help='DEFAULT=2.0')
+parser.add_option('', '--m2', default=1.4, type='float',
+    help="DEFAULT=1.4")
+
 parser.add_option('', '--heatmap', default=False, action='store_true',
     help='plot the mimimum, maximum, and mean SNR and SNR loss as a function of source location.')
 parser.add_option('', '--theta-phi', nargs=2, default=[], action='append', type='float',
     help='specific theta phi source locations to be considered. All angles should be specified in degrees.')
 parser.add_option('', '--theta-phi-psi-iota', nargs=4, default=[], action='append', type='float',
     help='for cumulative SNR figures. All angles should be specified in degrees.')
+
+parser.add_option('', '--color-map', default='OrRd', type='string')
 
 parser.add_option('-o', '--output-dir', default='.', type='string')
 parser.add_option('-t', '--tag', default='', type='string')
@@ -59,6 +85,8 @@ if opts.tag:
 
 if not os.path.exists(opts.output_dir):
     os.makedirs(opts.output_dir)
+
+opts.verbose = opts.verbose or opts.Verbose
 
 #-------------------------------------------------
 
@@ -77,21 +105,65 @@ detector = utils.Detector('fake', np.array(opts.ex), np.array(opts.ey), np.zeros
 
 #------------------------
 
-raise NotImplementedError, '''\
-generate waveform! but do not project it into hfp, hfx.
-    this should be a 1D vector and we should call it "h"
-need to define freqs
+# technical parameters for vector length
+srate = 4096.0
 
-need to define "data" for the detector? or should we do that within the loops?
-we'll get a sensible number if we just project the template into the data stream ourselves and call that data
-  -> is this what we really want to measure?
-'''
+seglen = 64.0
+length = srate*seglen # lenght of 60 secs, hardcoded. May call a LALSimRoutine to get an idea
+
+deltaT = 1/srate
+deltaF = 1.0 / (length * deltaT);
+
+#frequencies
+f_min = 10
+f_ref = 40 ### reference frequency for precessing spins
+f_max = float(srate)/2.0 ### up to Nyquist
+
+# reference parameters
+phiRef = np.pi*3/2
+#longAscNodes = 0.
+#eccentricity = 0.
+#meanPerAno = 0.
+
+# CBC params:
+m1 = opts.m1*LAL_MSUN_SI
+m2 = opts.m2*LAL_MSUN_SI
+
+#spins
+#s1x = 0.0
+#s1y = 0.0
+s1z = 0.0
+#s2x = 0.0
+#s2y = 0.0
+s2z = 0.0
+
+#extrinsic params
+distance = 450*LAL_PC_SI*1.0e6
+
+### lalpars
+lalpars = lal.CreateDict()
+
+## build the waveforms!
+h = lalsim.SimInspiralTaylorF2(
+    phiRef, 
+    deltaF, 
+    m1, m2, 
+    s1z, s2z, 
+    f_min, f_max, f_ref, 
+    distance, 
+    lalpars,
+)
+freqs = np.array([h.f0+i*h.deltaF for i in np.arange(h.data.length)])
+
+### zero waveforms beyond isco
+isco = LAL_C_SI**3/(LAL_G_SI*(m1+m2)) / (np.pi * 6**(3./2))
+h.data.data[freqs > isco] = 0
 
 #------------------------
 
 ### draw samples for marginalizations
 psi_samples = np.linspace(0, np.pi, opts.N_psi+1)[:-1]
-iota_samples = np.arccos(np.linsapce(-1,1, opts.N_iota)) ### sample uniformly in cos(iota)
+iota_samples = np.arccos(np.linspace(-1,1, opts.N_iota)) ### sample uniformly in cos(iota)
 
 #------------------------
 
@@ -111,17 +183,32 @@ if opts.heatmap:
     bad_max = np.empty((npix,), dtype=float)
     bad_mean = np.empty((npix,), dtype=float)
 
-    for ind, (theta, phi) in enumerate(zip(hp.pix2ang(opts.nside, npix))):
+    for ind, (theta, phi) in enumerate(zip(*hp.pix2ang(opts.nside, np.arange(npix)))):
         good = np.empty((opts.N_psi, opts.N_iota), dtype=float)
         bad  = np.empty((opts.N_psi, opts.N_iota), dtype=float)
-        
+       
+        if opts.Verbose:
+            print( "    %d / %d"%(ind+1, npix) )
+            print( "    theta : %.3f"%theta )
+            print( "    phi   : %.3f"%phi )
+ 
         for knd, iota in enumerate(iota_samples): ### iterate over inclinations
+            if opts.Verbose:
+                print( "        %d / %d"%(knd+1, opts.N_iota) )
+                print( "        iota : %.3f"%iota )
+
             for jnd, psi in enumerate(psi_samples): ### itereate over polarization angle
+                if opts.Verbose:
+                    print( "            %d / %d"%(jnd+1, opts.N_psi) )
+                    print( "            psi : %.3f"%psi )
 
                 ### project into hx, hp
                 cos_iota = np.cos(iota)
-                hpf = h*(1.+cos_iota**2)*0.5
-                hxf = h*cos_iota
+                hpf = h.data.data*(1.+cos_iota**2)*0.5
+                hxf = h.data.data*cos_iota
+
+                ### define data
+                data = detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=False)
 
                 ### compute SNR with and without the correct antenna responses (controlled with zeroFreq boolean kwarg)
                 good[jnd,knd] = utils.snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False)
@@ -135,19 +222,47 @@ if opts.heatmap:
         bad_max[ind] = np.max(bad)
         bad_mean[ind] = np.mean(bad)
 
-    raise NotImplementedError, '''\
-heatmap the min, max, mean, and mode for good and bad responses.
-Also take the ratio of the two? The difference? some sort of comparison metric
-'''
+    ### save figures
+    for title, label, tag, x in [
+        ('min $\\rho$ with $F(f)$',  '$\\rho$', 'mollweide-good_min',  good_min),
+        ('max $\\rho$ with $F(f)$',  '$\\rho$', 'mollweide-good_max',  good_max),
+        ('mean $\\rho$ with $F(f)$', '$\\rho$', 'mollweide-good_mean', good_mean),
+        ('min $\\rho$ with $F(0)$',  '$\\rho$', 'mollweide-bad_min',   bad_min),
+        ('max $\\rho$ with $F(0)$',  '$\\rho$', 'mollweide-bad_max',   bad_max),
+        ('mean $\\rho$ with $F(0)$', '$\\rho$', 'mollweide-bad_mean',  bad_mean),
+        ('min with $F(0)$/min with $F(f)$',   'ratio', 'mollweide-ratio_min',  bad_min/good_min),
+        ('max with $F(0)$/max with $F(f)$',   'ratio', 'mollweide-ratio_max',  bad_max/good_max),
+        ('mean with $F(0)$/mean with $F(f)$', 'ratio', 'mollweide-ratio_mean', bad_mean/good_mean),
+        ('min with $F(f)$ - min with $F(0)$',   'difr', 'mollweide-diff_min',  good_min-bad_min),
+        ('max with $F(f)$ - max with $F(0)$',   'difr', 'mollweide-diff_max',  good_max-bad_max),
+        ('mean with $F(f)$ - mean with $F(0)$', 'diff', 'mollweide-diff_mean', good_mean-bad_mean),
+    ]:
+        fig = plt.figure()
+        ax = fig.add_axes(axpos, projection='mollweide')
+
+        ax.set_title(title)
+
+        lalinf_plot.healpix_heatmap( x, cmap=plt.get_cmap(opts.color_map) )
+
+        cb = plt.colorbar(orientation='horizontal', shrink=0.8)
+        cb.set_label(label)
+
+        figname = "%s/%s%s.png"%(opts.output_dir, tag, opts.tag)
+        if opts.verbose:
+            print "    saving : "+figname
+        fig.savefig(figname)
+        plt.close(fig)
 
 #------------------------
 
 ### plot distribution of snr loss at a few points in the sky
-for theta, phi in opts.theta_phi:
+for ind, (theta, phi) in enumerate(opts.theta_phi):
     if opts.verbose:
         print( 'generating distribution of SNRs as a function of psi, iota' )
         print '    theta : %.3f deg'%theta
         print '    phi   : %.3f deg'%phi
+    title = '$\\theta = %.3f^\circ$  $\phi = %.3f^\circ$'%(theta, phi)
+
     theta *= deg2rad
     phi *= deg2rad
 
@@ -155,31 +270,63 @@ for theta, phi in opts.theta_phi:
     bad  = np.empty((opts.N_psi, opts.N_iota), dtype=float)
 
     for knd, iota in enumerate(iota_samples):
-        for jnd, psi in enuemrate(psi_samples):
+        if opts.Verbose:
+            print( "    %d / %d"%(knd+1, opts.N_iota) )
+            print( "    iota = %.3f"%iota )
+
+        for jnd, psi in enumerate(psi_samples):
+            if opts.Verbose:
+                print( "        %d / %d"%(jnd+1, opts.N_psi) )
+                print( "        psi = %.3f"%psi )
+
             ### project into hx, hp
             cos_iota = np.cos(iota)
-            hpf = h*(1.+cos_iota**2)*0.5
-            hxf = h*cos_iota
+            hpf = h.data.data*(1.+cos_iota**2)*0.5
+            hxf = h.data.data*cos_iota
+
+            ### define data
+            data = detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=False)
 
             ### compute SNR with and without the correct antenna responses (controlled with zeroFreq boolean kwarg)
             good[jnd,knd] = utils.snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False)
             bad[jnd,knd]  = utils.snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=True)
 
-    raise NotImplementedError, '''\
-plot the snr loss as a function of inclination and polarization angle
-just imshow on a cartesian grid?
-'''
+    extent = np.array([np.min(iota_samples), np.max(iota_samples), np.min(psi_samples), np.max(psi_samples)])*rad2deg
+
+    for title, label, tag, x in [
+        (title+'\n$F(f)$',      '$\\rho$', 'theta-phi_good',  good),
+        (title+'\n$F(0)$',      '$\\rho$', 'theta-phi_bad',   bad),
+        (title+'\n$F(0)/F(f)$', 'ratio',   'theta-phi_ratio', bad/good),
+        (title+'\n$F(f)-F(0)$', 'diff',   'theta-phi_diff',   good-bad),
+    ]:
+        fig = plt.figure()
+        ax = fig.gca()
+
+        imag = ax.imshow( x, origin='lower', interpolation='bilinear', aspect='auto', extent=extent )
+
+        ax.set_ylabel('$\psi$ [$^\circ$]')
+        ax.set_xlabel('$\iota$ [$^\circ$]')
+
+        cb = plt.colorbar(imag, orientation='vertical', shrink=0.8)
+        cb.set_label(label)
+
+        figname = "%s/%s_%04d%s.png"%(opts.output_dir, tag, ind, opts.tag)
+        if opts.verbose:
+            print "    saving : "+figname
+        fig.savefig(figname)
+        plt.close(fig)
 
 #------------------------
 
 ### plot cumulative snr at a few theta, phi, psi, iota combinations
-for theta, phi, psi, iota in opts.theta_phi_psi_iota:
+for ind, (theta, phi, psi, iota) in enumerate(opts.theta_phi_psi_iota):
     if opts.verbose:
         print( 'generating plots of accumulated snr as a function of frequency' )
         print '    theta : %.3f deg'%theta
         print '    phi   : %.3f deg'%phi
         print '    psi   : %.3f deg'%psi
         print '    iota  : %.3f deg'%iota
+    title = '$\\theta = %.3f^\circ$  $\phi = %.3f^\circ$\n$\psi = %.3f^\circ$  $\iota = %.3f^\circ$'%(theta, phi, psi, iota)
     theta *= deg2rad
     phi *= deg2rad
     psi *= deg2rad
@@ -187,13 +334,33 @@ for theta, phi, psi, iota in opts.theta_phi_psi_iota:
 
     ### project into hx, hp
     cos_iota = np.cos(iota)
-    hpf = h*(1+cos_iota**2)*0.5
-    hxf = h*cos_iota
+    hpf = h.data.data*(1+cos_iota**2)*0.5
+    hxf = h.data.data*cos_iota
+
+    ### define data
+    data = detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=False)
 
     good = utils.cumsum_snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False)
-    bad  = utils,cumsum_snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=True)
+    bad  = utils.cumsum_snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=True)
 
-    raise NotImplementedError, '''\
-plot the cumulative SNR accumulated as a function of frequency with and without the correct antenna patterns
-'''
+    fig = plt.figure()
+    ax = fig.gca()
 
+    ax.plot(freqs, good/good[-1], label='$F(f)$')
+    ax.plot(freqs, bad/good[-1], label='$F(0)$')
+
+    ax.plot(freqs, (good-bad)/good[-1], label='$F(f)-F(0)$')
+
+    ax.grid(True, which='both')
+    ax.legend(loc='best')
+
+    ax.set_xlabel('$f_0$ [Hz]')
+    ax.set_ylabel('$\\rho(f<f_0)/\\rho$')
+
+    ax.set_ylim(ymin=-0.01, ymax=1.01)
+
+    figname = "%s/theta-phi-psi-iota_%04d%s.png"%(opts.output_dir, ind, opts.tag)
+    if opts.verbose:
+        print "    saving : "+figname
+    fig.savefig(figname)
+    plt.close(fig)
