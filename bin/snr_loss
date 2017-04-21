@@ -294,7 +294,7 @@ for ind, (theta, phi) in enumerate(opts.theta_phi):
             good[jnd,knd] = utils.snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False)
             bad[jnd,knd]  = utils.snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=True)
 
-    extent = np.array([np.min(cosiota_samples), np.max(cosiota_samples), np.min(psi_samples), np.max(psi_samples)])*rad2deg
+    extent = np.array([np.min(cosiota_samples), np.max(cosiota_samples), np.min(psi_samples)*rad2deg, np.max(psi_samples)*rad2deg])
 
     for title, label, tag, x in [
         (title+'\n$F(f)$',      '$\\rho$', 'theta-phi_good',  good),
