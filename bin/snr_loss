@@ -61,7 +61,7 @@ parser.add_option('-L', '--L', default=4e3, type='float',
 parser.add_option('', '--PSD', default='aLIGO', type='string',
     help='either "aLIGO" or "aVirgo". DEFAULT=aLIGO')
 
-parser.add_option('', '--m1', default=2.0, type='float',
+parser.add_option('', '--m1', default=1.4, type='float',
     help='DEFAULT=2.0')
 parser.add_option('', '--m2', default=1.4, type='float',
     help="DEFAULT=1.4")
@@ -165,7 +165,8 @@ h.data.data[freqs > isco] = 0
 
 ### draw samples for marginalizations
 psi_samples = np.linspace(0, np.pi, opts.N_psi+1)[:-1]
-iota_samples = np.arccos(np.linspace(-1,1, opts.N_iota)) ### sample uniformly in cos(iota)
+cosiota_samples = np.linspace(-1,1, opts.N_iota) ### sample uniformly in cos(iota)
+iota_samples = np.arccos(cosiota_samples) ### sample uniformly in cos(iota)
 
 #------------------------
 
@@ -207,7 +208,7 @@ if opts.heatmap:
                 ### project into hx, hp
                 cos_iota = np.cos(iota)
                 hpf = h.data.data*(1.+cos_iota**2)*0.5
-                hxf = h.data.data*cos_iota
+                hxf = 1j*h.data.data*cos_iota
 
                 ### define data
                 data = detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=False)
@@ -284,7 +285,7 @@ for ind, (theta, phi) in enumerate(opts.theta_phi):
             ### project into hx, hp
             cos_iota = np.cos(iota)
             hpf = h.data.data*(1.+cos_iota**2)*0.5
-            hxf = h.data.data*cos_iota
+            hxf = 1j*h.data.data*cos_iota
 
             ### define data
             data = detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=False)
@@ -293,7 +294,7 @@ for ind, (theta, phi) in enumerate(opts.theta_phi):
             good[jnd,knd] = utils.snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False)
             bad[jnd,knd]  = utils.snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=True)
 
-    extent = np.array([np.min(iota_samples), np.max(iota_samples), np.min(psi_samples), np.max(psi_samples)])*rad2deg
+    extent = np.array([np.min(cosiota_samples), np.max(cosiota_samples), np.min(psi_samples), np.max(psi_samples)])*rad2deg
 
     for title, label, tag, x in [
         (title+'\n$F(f)$',      '$\\rho$', 'theta-phi_good',  good),
@@ -309,7 +310,7 @@ for ind, (theta, phi) in enumerate(opts.theta_phi):
         imag = ax.imshow( x, origin='lower', interpolation='bilinear', aspect='auto', extent=extent, cmap=plt.get_cmap(opts.color_map) )
 
         ax.set_ylabel('$\psi$ [$^\circ$]')
-        ax.set_xlabel('$\iota$ [$^\circ$]')
+        ax.set_xlabel('$\cos\iota$')
 
         cb = plt.colorbar(imag, orientation='vertical', shrink=0.9)
         cb.set_label(label)
@@ -339,7 +340,7 @@ for ind, (theta, phi, psi, iota) in enumerate(opts.theta_phi_psi_iota):
     ### project into hx, hp
     cos_iota = np.cos(iota)
     hpf = h.data.data*(1+cos_iota**2)*0.5
-    hxf = h.data.data*cos_iota
+    hxf = 1j*h.data.data*cos_iota
 
     ### define data
     data = detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=False)
