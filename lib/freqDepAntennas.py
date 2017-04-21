@@ -91,6 +91,11 @@ def antenna_response( theta, phi, psi, ex, ey, T=1., freqs=0. ):
 
     return F+, Fx
     '''
+    if isinstance(theta, (int, float)):
+        theta = [theta]
+        phi = [phi]
+        psi = [psi]
+
     ### compute the trigonometric functions only once
     cosTheta = np.cos(theta)
     sinTheta = np.sin(theta)
