@@ -57,10 +57,12 @@ class Detector(object):
         if zeroFreq, we use const_antenna_response instead of antenna_response
         """
         if zeroFreq:
-            Fp, Fx = ant.const_anteanna_response(theta, phi, psi, self.ex, self.ey)
+            Fp, Fx = ant.const_antenna_response(theta, phi, psi, self.ex, self.ey)
         else:
-            Fp, Fx = ant.antenna_resopnse(theta, phi, psi, self.ex, self.ey, T=self.T, freqs=freqs)
-        return Fp*hpF + Fx*hxf
+            Fp, Fx = ant.antenna_response(theta, phi, psi, self.ex, self.ey, T=self.T, freqs=freqs)
+            Fp = Fp[:,0]
+            Fx = Fx[:,0]
+        return Fp*hpf + Fx*hxf
 
     def drawNoise(self, freqs):
         """
@@ -106,7 +108,7 @@ def snr( freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False ):
     template = detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=zeroFreq)
     PSD = detector.PSD(freqs)
     deltaF = freqs[1]-freqs[0]
-    return np.sum(deltaF*np.conjugate(data)*template/PSD).real / np.sum(deltaF*np.conjugate(template)*template/PSD)**0.5
+    return np.sum(deltaF*np.conjugate(data)*template/PSD).real / np.sum(deltaF*np.conjugate(template)*template/PSD).real**0.5
 
 def cumsum_snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False ):
     """
@@ -115,7 +117,7 @@ def cumsum_snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False 
     template = detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=zeroFreq)
     PSD = detector.PSD(freqs)
     deltaF = freqs[1]-freqs[0]
-    return np.cumsum(deltaF*np.conjugate(data)*template/PSD).real / np.sum(deltaF*np.conjugate(template)*template/PSD)**0.5
+    return np.cumsum(deltaF*np.conjugate(data)*template/PSD).real / np.sum(deltaF*np.conjugate(template)*template/PSD).real**0.5
 
 def lnLikelihood( freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False ):
     """
