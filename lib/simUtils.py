@@ -56,13 +56,18 @@ class Detector(object):
         project strains into this detector
         if zeroFreq, we use const_antenna_response instead of antenna_response
         """
+        ### angular dependence from antenna patterns
         if zeroFreq:
             Fp, Fx = ant.const_antenna_response(theta, phi, psi, self.ex, self.ey)
         else:
             Fp, Fx = ant.antenna_response(theta, phi, psi, self.ex, self.ey, T=self.T, freqs=freqs)
             Fp = Fp[:,0]
             Fx = Fx[:,0]
-        return Fp*hpf + Fx*hxf
+        ### overall phase delay from extra time-of-flight
+        phs = 2j*np.pi*freqs*self.r ### r is measured in seconds
+                                    ### FIXME: there could be a sign error here depending on our convention for FFT's...
+
+        return (Fp*hpf + Fx*hxf)*np.exp(phs)
 
     def drawNoise(self, freqs):
         """
@@ -101,6 +106,15 @@ Virgo = Detector(
 
 #-------------------------------------------------
 
+def h2pol( h, iota, distance=1. ):
+    '''
+    map a waveform into polarization components and normalize by distance
+    '''
+    cos_iota = np.cos(iota)
+    return h*0.5*(1+cos_iota**2)/distance, 1j*h*cos_iota/distance
+
+#-------------------------------------------------
+
 def snr( freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False ):
     """
     computes the SNR of this template against this data
@@ -119,8 +133,48 @@ def cumsum_snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False 
     deltaF = freqs[1]-freqs[0]
     return np.cumsum(deltaF*np.conjugate(data)*template/PSD).real / np.sum(deltaF*np.conjugate(template)*template/PSD).real**0.5
 
-def lnLikelihood( freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False ):
+#------------------------
+
+def lnLikelihood( theta, phi, psi, iota, distance, freqs, data, h, detectors, zeroFreq=False, **kwargs ):
     """
     log(likelihood) of this template against this data
     """
-    return 0.5*snr(freqs, PSD, data, hpf, hxf, theta, phi, psi, zeroFreq=zeroFreq)**2
+    hpf, hxf = h2pol(h, iota)
+    return np.sum([0.5*snr(freqs, detector, datum, hpf, hxf, theta, phi, psi, zeroFreq=zeroFreq)**2 for detector, datum in zip(detectors, data)])
+
+def likelihood( theta, phi, psi, iota, distance, freqs, data, h, detectors, zeroFreq=False, **kwargs ):
+    return np.exp(lnLikelihood(theta, phi, psi, iota, distance, freqs, data, h, detectors, zeroFreq=zeroFreq))
+
+#---
+
+def lnPrior( theta, phi, psi, iota, distance, minDistance=0, maxDistance=1000, **kwargs ):
+    """
+    log(prior) of extrinsic parameters
+    """
+    if (theta<0) or (theta>np.pi):
+        return -np.infty
+    if (phi<0) or (phi>2*np.pi):
+        return -np.infty
+    if (psi<0) or (psi>2*np.pi):
+        return -np.infty
+    if (iota<0) or (iota>np.pi):
+        return -np.infty
+    if (distance<minDistance) or (distance>maxDistance):
+        return -np.infty
+
+    return np.log(np.sin(theta)) + np.log(np.sin(iota)) + 2*np.log(distance)
+
+def prior( theta, phi, psi, iota, distance, minDistance=0, maxDistance=1000, **kwargs ):
+    return np.exp(lnPrior(theta, phi, psi, iota, distance, minDistance=minDistance, maxDistance=maxDistance))
+
+#---
+
+def lnPosterior( theta, phi, psi, iota, distance, freqs, data, h, detectors, zeroFreq=False, minDistance=0, maxDistance=1000, **kwargs ):
+    """
+    log(posterior) of this template and extrinsic params against this data
+    NOTE: this is not strictly normalized, so it isn't exactly the posterior
+    """
+    return lnLikelihood(theta, phi, psi, iota, distance, freqs, data, h, detectors, zeroFreq=zeroFreq) + lnPrior(theta, phi, psi, iota, distance, minDistance=minDistance, maxDistance=maxDistance)
+
+def posterior( theta, phi, psi, iota, distance, freqs, data, h, detectors, zeroFreq=False, minDistance=0, maxDistance=1000, **kwargs ):
+    return np.exp(lnPosterior(theta, phi, psi, iota, distance, freqs, data, h, detectors, zeroFreq=zeroFreq, minDistance=minDistance, maxDistance=maxDistance))
