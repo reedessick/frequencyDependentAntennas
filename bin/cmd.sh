@@ -133,7 +133,7 @@ do
                 --nside $nside \
                 --N-psi $N \
                 --N-iota $N \
-                --L $L \
+                --L ${L}e3 \
                 -o snr -t ${L}km-nside${nside}-${N}x${N} 
         done
     done
