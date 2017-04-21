@@ -73,6 +73,8 @@ parser.add_option('', '--theta-phi', nargs=2, default=[], action='append', type=
 parser.add_option('', '--theta-phi-psi-iota', nargs=4, default=[], action='append', type='float',
     help='for cumulative SNR figures. All angles should be specified in degrees.')
 
+parser.add_option('', '--theta-phi-psi-iota-ymin', default=1e-4, type='float')
+
 parser.add_option('', '--color-map', default='OrRd', type='string')
 
 parser.add_option('-o', '--output-dir', default='.', type='string')
@@ -302,12 +304,14 @@ for ind, (theta, phi) in enumerate(opts.theta_phi):
         fig = plt.figure()
         ax = fig.gca()
 
-        imag = ax.imshow( x, origin='lower', interpolation='bilinear', aspect='auto', extent=extent )
+        ax.set_title(title)
+
+        imag = ax.imshow( x, origin='lower', interpolation='bilinear', aspect='auto', extent=extent, cmap=plt.get_cmap(opts.color_map) )
 
         ax.set_ylabel('$\psi$ [$^\circ$]')
         ax.set_xlabel('$\iota$ [$^\circ$]')
 
-        cb = plt.colorbar(imag, orientation='vertical', shrink=0.8)
+        cb = plt.colorbar(imag, orientation='vertical', shrink=0.9)
         cb.set_label(label)
 
         figname = "%s/%s_%04d%s.png"%(opts.output_dir, tag, ind, opts.tag)
@@ -346,6 +350,8 @@ for ind, (theta, phi, psi, iota) in enumerate(opts.theta_phi_psi_iota):
     fig = plt.figure()
     ax = fig.gca()
 
+    ax.set_title(title)
+
     ax.plot(freqs, good/good[-1], label='$F(f)$')
     ax.plot(freqs, bad/good[-1], label='$F(0)$')
 
@@ -357,7 +363,8 @@ for ind, (theta, phi, psi, iota) in enumerate(opts.theta_phi_psi_iota):
     ax.set_xlabel('$f_0$ [Hz]')
     ax.set_ylabel('$\\rho(f<f_0)/\\rho$')
 
-    ax.set_ylim(ymin=-0.01, ymax=1.01)
+    ax.set_yscale('log')
+    ax.set_ylim(ymin=opts.theta_phi_psi_iota_ymin, ymax=1.1)
 
     figname = "%s/theta-phi-psi-iota_%04d%s.png"%(opts.output_dir, ind, opts.tag)
     if opts.verbose:
