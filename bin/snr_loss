@@ -62,7 +62,7 @@ parser.add_option('', '--PSD', default='aLIGO', type='string',
     help='either "aLIGO" or "aVirgo". DEFAULT=aLIGO')
 
 parser.add_option('', '--m1', default=1.4, type='float',
-    help='DEFAULT=2.0')
+    help='DEFAULT=1.4')
 parser.add_option('', '--m2', default=1.4, type='float',
     help="DEFAULT=1.4")
 
@@ -206,9 +206,7 @@ if opts.heatmap:
                     print( "            psi : %.3f"%psi )
 
                 ### project into hx, hp
-                cos_iota = np.cos(iota)
-                hpf = h.data.data*(1.+cos_iota**2)*0.5
-                hxf = 1j*h.data.data*cos_iota
+                hpf, hxf = utils.h2pol(h.data.data, iota)
 
                 ### define data
                 data = detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=False)
@@ -283,9 +281,7 @@ for ind, (theta, phi) in enumerate(opts.theta_phi):
                 print( "        psi = %.3f"%psi )
 
             ### project into hx, hp
-            cos_iota = np.cos(iota)
-            hpf = h.data.data*(1.+cos_iota**2)*0.5
-            hxf = 1j*h.data.data*cos_iota
+            hpf, hxf = utils.h2pol(h.data.data, iota)
 
             ### define data
             data = detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=False)
@@ -338,9 +334,7 @@ for ind, (theta, phi, psi, iota) in enumerate(opts.theta_phi_psi_iota):
     iota *= deg2rad
 
     ### project into hx, hp
-    cos_iota = np.cos(iota)
-    hpf = h.data.data*(1+cos_iota**2)*0.5
-    hxf = 1j*h.data.data*cos_iota
+    hpf, hxf = utils.h2pol(h.data.data, iota)
 
     ### define data
     data = detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=False)

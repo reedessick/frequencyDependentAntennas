@@ -76,8 +76,8 @@ parser.add_option('', '--ey', default=[], nargs=3, type='float')
 parser.add_option('-L', '--L', default=4e3, type='float',
     help='the length of the arm, in meters')
 
-parser.add_option('', '--m1', default=2.0, type='float',
-    help='DEFAULT=2.0')
+parser.add_option('', '--m1', default=1.4, type='float',
+    help='DEFAULT=1.4')
 parser.add_option('', '--m2', default=1.4, type='float',
     help="DEFAULT=1.4")
 
