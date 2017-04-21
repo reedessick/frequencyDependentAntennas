@@ -1,0 +1,185 @@
+#!/usr/bin/env python
+
+usage = "localize [--options]"
+description = "a quick sampler over extrinsic parameters to study the effects of frequency dependent antenna patterns on localization"
+author = "Reed Essick"
+
+#-------------------------------------------------
+
+import os
+
+import numpy as np
+import simUtils as utils
+
+import emcee
+
+from lal import lal
+from lal.lal import MSUN_SI as LAL_MSUN_SI
+from lal.lal import PC_SI as LAL_PC_SI
+from lal.lal import C_SI as LAL_C_SI
+from lal.lal import G_SI as LAL_G_SI
+
+import lalsimulation as lalsim
+
+from optparse import OptionParser
+
+#-------------------------------------------------
+
+known_detectors = {
+    'H' : utils.LHO,
+    'L' : utils.LLO,
+    'V' : utils.Virgo,
+}
+
+Ndim = 5 # theta, phi, psi, iota, distance
+
+#-------------------------------------------------
+
+parser = OptionParser(usage=usage, description=description)
+
+### output options
+
+parser.add_option('-v', '--verbose', default=False, action='store_true')
+
+parser.add_option('-o', '--output-dir', default='.', type='string')
+parser.add_option('-t', '--tag', default='', type='string')
+
+### options about the network and assumptions we make about antenna patterns
+
+parser.add_option('-i', '--instrument', default=[], type='string',
+    help='Will draw random Gaussian noise for each and inject a signal. \
+Should be repeated if there are multiple instruments. Must be one of : %s'%(', '.join(known_detectors.keys())))
+
+parser.add_option('', '--zeroFreq', default=False, action='store_true',
+    help='use the zero frequency limit for antenna response when localizing.\
+Note: we will *always* inject the signal with the correct response, which accounts for non-zero frequencies.')
+
+### parameters about the samplers
+
+parser.add_option('-N', '--Nwalkers', default=100, type='int', 
+    help='the number of walkers for the ensemble sampler')
+parser.add_option('-n', '--Nsteps', default=1000, type='int',
+    help='the number of steps each walker will take')
+parser.add_option('', '--NpriorSteps', default=100, type='int', 
+    help='the number of steps taken when sampling from the prior')
+
+parser.add_option('', '--min-distance', default=1, type='float',
+    help='in Mpc. DEFAULT=1')
+parser.add_option('', '--max-distance', default=1000, type='float',
+    help='in Mpc. DEFAULT=1000')
+
+### parameters about the injected signal
+parser.add_option('', '--distance', default=100, type='float',
+    help='in Mpc. Default=100')
+
+parser.add_option('', '--m1', default=1.4, type='float',
+    help='in Msun. DEFAULT=1.4')
+parser.add_option('', '--m2', default=1.4, type='float',
+    help="in Msun. DEFAULT=1.4")
+
+parser.add_option('', '--sz1', default=0.0, type='float',
+    help='DEFAULT=0')
+parser.add_option('', '--sz2', default=0.0, type='float',
+    help='DEFAULT=0')
+
+parser.add_option('', '--phiRef', default=1.5*np.pi, type='float',
+    help='in rad. DEFAULT=3*pi/2')
+
+### signal processing params
+
+parser.add_option('', '--f-min', default=10, type='float',
+    help='in Hz. DEFAULT=10')
+parser.add_option('', '--f-ref', default=40, type='float',
+    help='in Hz. DEFAULT=40')
+
+parser.add_option('', '--srate', default=4096, type='float',
+    help='in Hz. DEFAULT=4096')
+parser.add_option('', '--seglen', default=64, type='float',
+    help='in sec. DEFAULT=64')
+
+opts, args = parser.parse_args()
+
+if not os.path.exists(opts.output_dir):
+    os.makedirs(opts.output_dir)
+
+if opts.tag:
+    opts.tag = "_"+opts.tag
+
+assert len(opts.instrument), 'please supply at least one instrument\n%s'%usage
+assert np.all([known_detectors.has_key(ifo) for ifo in opts.instrument]), 'please supply only known ifos\n%s'%(', '.join(known_detectors.keys()))
+
+#-------------------------------------------------
+
+if opts.verbose:
+    print( 'setting up arguments' )
+# technical parameters for vector length
+length = opts.srate*opts.seglen 
+
+deltaT = 1/opts.srate
+deltaF = 1.0 / (length * deltaT);
+
+#frequencies
+isco = LAL_C_SI**3/(LAL_G_SI*(m1+m2)) / (np.pi * 6**(3./2))
+f_max = min(float(opts.srate)/2.0, isco) ### up to Nyquist or isco
+
+## build the waveforms!
+h = lalsim.SimInspiralTaylorF2(
+    opts.phiRef,
+    deltaF,
+    opts.m1*LAL_MSUN_SI, 
+    opts.m2*LAL_MSUN_SI,
+    opts.s1z, 
+    opts.s2z,
+    opts.f_min, 
+    f_max, 
+    opts.f_ref,
+    opts.distance*LAL_PC_SI*1e6,
+    lal.CreateDict(),
+)
+freqs = np.array([h.f0+i*h.deltaF for i in np.arange(h.data.length)])
+h = h.data.data ### I only care about the frequency vector
+
+### detectors
+detectors = [known_detectors[ifo] for ifo in opts.instrument]
+
+### data
+hpf, hxf = utils.h2pol( h.data.data, opts.iota )
+data = [detector.drawNoise(freqs)+detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=False)]
+
+### set up arguments
+args = (freqs, data, h, detectors)
+kwargs = {
+    'zeroFreq':opts.zeroFreq,
+    'minDistance':opts.min_distance,
+    'maxDistance':opts.max_distance,
+}
+
+if opts.verbose:
+    print( 'sampling from prior to get starting points' )
+sampler = emcee.EnsembleSampler(opts.Nwalkers, Ndim, utils.lnPrior, kwargs=kwargs)
+sampler.run(opts.Nwalkers, Ndim)
+p0 = sampler.chain[:,-1,:] ### take the last point from all walkers as the starting point
+                           ### should represent the prior reasonably well
+
+#------------------------
+
+if opts.verbose:
+    print( 'setting up sampler' )
+sampler = emcee.EnsembleSampler(opts.Nwalkers, Ndim, utils.lnPosterior, args=args, kwargs=kwargs)
+
+if opts.verbose:
+    print( 'running sampler' )
+sampler.run_mcmc(p0, opts.Nsteps)
+
+filename = '%s/localize%s.txt'%(opts.output_dir, opts.tag)
+if opts.verbose:
+    print( 'writing output to : %s'%filename )
+
+file_obj = open(filename, 'w')
+print >> file_obj, 'lnprob theta phi psi iota distance[Mpc]'
+for walker in xrange(opts.Nwalkers):
+    for iteration in xrange(opts.Nsteps):
+        lnpost = sampler.lnprobability[walker, iteration]
+        params = sampler.chain[walker, iteration]
+        print >> file_obj, '%.9f %.9f %.9f %.9f. %.9f %.9f'%tuple([lnpost]+list(params))
+file_obj.close()
