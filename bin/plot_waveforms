@@ -12,7 +12,6 @@ import numpy as np
 import freqDepAntennas as ant
 
 from lal import lal
-from lal.lal import LIGOTimeGPS
 from lal.lal import MSUN_SI as LAL_MSUN_SI
 from lal.lal import PC_SI as LAL_PC_SI
 from lal.lal import C_SI as LAL_C_SI
