@@ -1,0 +1,116 @@
+#!/usr/bin/env python
+
+usage = "sanityCheck [--options]"
+description = "make some sanity check plots to confirm basic symmetries"
+author = "Reed Essick"
+
+#-------------------------------------------------
+
+import os
+
+import numpy as np
+import healpy as hp
+import freqDepAntennas as ant
+
+import matplotlib
+matplotlib.use("Agg")
+from matplotlib import pyplot as plt
+plt.rcParams['text.usetex'] = True
+
+from optparse import OptionParser 
+
+#-------------------------------------------------
+
+parser = OptionParser(usage=usage, description=description)
+
+parser.add_option('-v', '--verbose', default=False, action='store_true')
+
+parser.add_option('-N', '--Nfreq', default=100, type='int',
+    help='the number of frequencies used to check __D__')
+parser.add_option('-n', '--Ndirc', default=10, type='int',
+    help='the number of directions used to check __D__')
+
+parser.add_option('', '--nside', default=64, type='int', 
+    help='used to check symmetry of the full antenna pattern')
+
+parser.add_option('-o', '--output-dir', default='.', type='string')
+parser.add_option('-t', '--tag', default='', type='string')
+
+opts, args = parser.parse_args()
+
+if not os.path.exists(opts.output_dir):
+    os.makedirs(opts.output_dir)
+
+if opts.tag:
+    opts.tag = "_"+opts.tag
+
+#-------------------------------------------------
+T = 1.0
+
+freqs = 2*np.pi*np.linspace(0, 1./T, opts.Nfreq)
+omegaL = 1j*freqs
+
+#------------------------
+
+### plot __D__ as a function of frequency for a few different directions
+if opts.verbose:
+    print( 'sanity checking freqDepAntenna.__D__' )
+
+fig = plt.figure()
+mag_ax = plt.subplot(2,1,1)
+phs_ax = plt.subplot(2,1,2)
+
+for n in np.linspace(-1, 1, opts.Ndirc):
+    D = ant.__D__(omegaL, n)
+    label = '$n=$%.3f'%n
+
+    linestyle = 'solid' if n > 0 else 'dashed'
+
+    mag_ax.plot(freqs, np.abs(D), label=label, linestyle=linestyle)
+    phs_ax.plot(freqs, np.arctan2(D.imag, D.real)*180/np.pi, label=label, linestyle=linestyle)
+
+plt.setp(mag_ax.get_xticklabels(), visible=False)
+phs_ax.set_xlabel('$fL/c$')
+
+mag_ax.set_ylabel('$|D|$')
+phs_ax.set_ylabel('phase $D$')
+
+mag_ax.grid(True, which='both')
+phs_ax.grid(True, which='both')
+
+mag_ax.set_xlim(xmin=freqs[1], xmax=freqs[-1])
+phs_ax.set_xlim(mag_ax.get_xlim())
+
+phs_ax.set_ylim(ymin=-181, ymax=181)
+
+mag_ax.legend(loc='best')
+
+figname = "%s/sanityCheck_D%s.png"%(opts.output_dir, opts.tag)
+if opts.verbose:
+    print( "    saving : "+figname )
+fig.savefig(figname)
+plt.close(fig)
+
+#------------------------
+
+### ensure expected symmetry when rotating about the detector's z-axis and reflections about the x-y-plane
+ex = np.array([1, 0, 0])
+ey = np.array([0, 1, 0])
+
+if opts.verbose:
+    print( 'computing antenna patterns' )
+theta, phi = hp.pix2ang(opts.nside, np.arange(hp.nside2npix(opts.nside)))
+psi = np.zeros_like(theta)
+Fp, Fx = ant.antenna_response( theta, phi, psi, ex, ey, T=T, freqs=freqs )
+
+#---
+
+if opts.verbose:
+    print( 'sanity checking rotations about the Z-axis' )
+raise NotImplementedError
+
+#---
+
+if opts.verbose:
+    print( 'sanity checking reflections about the X-Y-plane' )
+raise NotImplementedError

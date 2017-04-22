@@ -16,26 +16,6 @@ import numpy as np
 
 #--- helper functions
 
-#def __D__( freqsT, N ):
-#    '''
-#    helper function that returns the part of the frequency dependence that depends on the arm's directions
-#
-#    DEPRECATED in favor of more explicit version which allows us to check divergences cleanly
-#    '''
-#    if isinstance(freqsT, (int, float, complex)):
-#        if freqsT==0:
-#            return np.ones_like(N, dtype=complex)
-#
-#    elif np.all(freqsT==0):
-#        return np.ones((len(freqsT), len(N)), dtype=complex)
-#
-#    #--- matt's condensed version
-#    n = np.outer(np.ones_like(freqsT), N)
-#    freqsT = np.outer(freqsT, np.ones_like(N))
-#
-#    phi = freqsT/1j
-#    return np.exp(-freqsT)/(1-N**2) * ( np.sinc(phi/np.pi) + n/(freqsT)*(np.cos(phi) - np.exp(freqsT*n)))
-
 def __D__( freqsT, N ):
     '''
     helper function that returns the part of the frequency dependence that depends on the arm's directions
@@ -47,38 +27,72 @@ def __D__( freqsT, N ):
     elif np.all(freqsT==0):
         return np.ones((len(freqsT), len(N)), dtype=complex)
 
-    a = 1-np.outer(np.ones_like(freqsT), N)
-    b = 2-a
-
+    #--- matt's condensed version
+    n = np.outer(np.ones_like(freqsT), N)
     freqsT = np.outer(freqsT, np.ones_like(N))
-    twoFreqsT = 2*freqsT
-    exp_twoFreqsT = np.exp(-twoFreqsT)
+    phi = freqsT/1j
 
-    ### assemble things carefully so we don't have to worry about nans later
-    ans = np.zeros_like(a)
+    ans = np.empty_like(freqsT)
 
-    truth = twoFreqsT==0 ### this kills all terms
+    truth = n==1
+    ans[truth] = 0.5*(1+np.exp(freqsT[truth])*np.sinc(phi[truth]/np.pi))
+
+    truth = n==-1
+    ans[truth] = np.exp(-2*freqsT[truth])*0.5*(1 + np.exp(freqsT[truth])*np.sinc(phi[truth]/np.pi))
+
+    truth = freqsT==0
     ans[truth] = 1
 
-    truth = np.logical_not(truth) ### flip it so it's everything else, use this to further filter array assignment
-
-    # where a is non-zero
-    this_truth = truth*(a!=0)
-    ans[this_truth] += (1 - np.exp( -a[this_truth]*freqsT[this_truth] ) ) / ( a[this_truth]*twoFreqsT[this_truth] )
-
-    # wehre a is zero
-    this_truth = truth*(a==0)
-    ans[this_truth] += 0.5
-
-    # where b is non-zero
-    this_truth = truth*(b!=0)
-    ans[this_truth] -= exp_twoFreqsT[this_truth] * (1 - np.exp( b[this_truth]*freqsT[this_truth] ) ) / ( b[this_truth]*twoFreqsT[this_truth] )
-
-    # where b is zero
-    this_truth = truth*(b==0)
-    ans[this_truth] -= 0.5*exp_twoFreqsT[this_truth]
+    truth = (np.abs(n)!=1)*(freqsT!=0)
+    ans[truth] = np.exp(-freqsT[truth])/(1-n[truth]**2)*(np.sinc(phi[truth]/np.pi) + (n[truth]/freqsT[truth])*(np.cos(phi[truth]) - np.exp(freqsT[truth]*n[truth])))
 
     return ans
+
+#def __D__( freqsT, N ):
+#    '''
+#    helper function that returns the part of the frequency dependence that depends on the arm's directions
+#
+#    DEPRECATED: known to be buggy because it doesn not presever |D(.,n)|==|D(.,-n)|
+#    '''
+#    if isinstance(freqsT, (int, float, complex)):
+#        if freqsT==0:
+#            return np.ones_like(N, dtype=complex)
+#
+#    elif np.all(freqsT==0):
+#        return np.ones((len(freqsT), len(N)), dtype=complex)
+#
+#    a = 1-np.outer(np.ones_like(freqsT), N)
+#    b = 2-a
+#
+#    freqsT = np.outer(freqsT, np.ones_like(N))
+#    twoFreqsT = 2*freqsT
+#    exp_twoFreqsT = np.exp(-twoFreqsT)
+#
+#    ### assemble things carefully so we don't have to worry about nans later
+#    ans = np.zeros_like(a)
+#
+#    truth = twoFreqsT==0 ### this kills all terms
+#    ans[truth] = 1
+#
+#    truth = np.logical_not(truth) ### flip it so it's everything else, use this to further filter array assignment
+#
+#    # where a is non-zero
+#    this_truth = truth*(a!=0)
+#    ans[this_truth] += (1 - np.exp( -a[this_truth]*freqsT[this_truth] ) ) / ( a[this_truth]*twoFreqsT[this_truth] )
+#
+#    # wehre a is zero
+#    this_truth = truth*(a==0)
+#    ans[this_truth] += 0.5
+#
+#    # where b is non-zero
+#    this_truth = truth*(b!=0)
+#    ans[this_truth] -= exp_twoFreqsT[this_truth] * (1 - np.exp( b[this_truth]*freqsT[this_truth] ) ) / ( b[this_truth]*twoFreqsT[this_truth] )
+#
+#    # where b is zero
+#    this_truth = truth*(b==0)
+#    ans[this_truth] -= 0.5*exp_twoFreqsT[this_truth]
+#
+#    return ans
 
 #--- actual responses
 

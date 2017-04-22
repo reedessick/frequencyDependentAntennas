@@ -1,3 +1,11 @@
+sanityCheck \
+    -v \
+    --Ndirc 5 \
+    --nside 64 \
+    -o test/ 
+
+#---
+
 plot_antennas \
     -V \
     --ex 1 0 0 \
@@ -19,6 +27,7 @@ bode_antennas \
     --theta-phi 0  7.5 --theta-phi 15  7.5 --theta-phi 30  7.5 --theta-phi 45  7.5 --theta-phi 60  7.5 --theta-phi 75  7.5 --theta-phi 90  7.5 \
     --theta-phi 0 15.0 --theta-phi 15 15.0 --theta-phi 30 15.0 --theta-phi 45 15.0 --theta-phi 60 15.0 --theta-phi 75 15.0 --theta-phi 90 15.0 \
     --theta-phi 0 22.5 --theta-phi 15 22.5 --theta-phi 30 22.5 --theta-phi 45 22.5 --theta-phi 60 22.5 --theta-phi 75 22.5 --theta-phi 90 22.5 \
+    --theta-phi 90 0 --theta-phi 90 45 --theta-phi 90 90 --theta-phi 90 135 --theta-phi 90 180 --theta-phi 90 225 --theta-phi 90 270 --theta-pi 90 315 \
     -o bode 
 
 bode_antennas \
@@ -31,6 +40,7 @@ bode_antennas \
     --theta-phi 0  7.5 --theta-phi 15  7.5 --theta-phi 30  7.5 --theta-phi 45  7.5 --theta-phi 60  7.5 --theta-phi 75  7.5 --theta-phi 90  7.5 \
     --theta-phi 0 15.0 --theta-phi 15 15.0 --theta-phi 30 15.0 --theta-phi 45 15.0 --theta-phi 60 15.0 --theta-phi 75 15.0 --theta-phi 90 15.0 \
     --theta-phi 0 22.5 --theta-phi 15 22.5 --theta-phi 30 22.5 --theta-phi 45 22.5 --theta-phi 60 22.5 --theta-phi 75 22.5 --theta-phi 90 22.5 \
+    --theta-phi 90 0 --theta-phi 90 45 --theta-phi 90 90 --theta-phi 90 135 --theta-phi 90 180 --theta-phi 90 225 --theta-phi 90 270 --theta-pi 90 315 \
     -o bode \
     --norm2zeroFreq -t normed 
 
@@ -121,7 +131,7 @@ done
 
 #---
 
-for nside in 4 8 16
+for nside in 2 4 8 16
 do
     for N in 5 10
     do

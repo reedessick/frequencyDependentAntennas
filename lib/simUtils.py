@@ -122,6 +122,7 @@ def h2pol( h, iota, distance=1. ):
 def snr( freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False ):
     """
     computes the SNR of this template against this data
+    does NOT maximize over the phase at coalescence
     """
     template = detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=zeroFreq)
     PSD = detector.PSD(freqs)
@@ -131,6 +132,7 @@ def snr( freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False ):
 def cumsum_snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False ):
     """
     returns the cumulative sum of the snr as a function of frequency
+    does NOT maximize over the phase at coalescence
     """
     template = detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=zeroFreq)
     PSD = detector.PSD(freqs)
