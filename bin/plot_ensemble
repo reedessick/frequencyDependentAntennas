@@ -1,0 +1,44 @@
+#!/usr/bin/env python
+
+usage = "plot_ensemble [--options] ensemble.txt"
+description = "generate representations of the ensemble of points produced by localize"
+author = "Reed Essick"
+
+#-------------------------------------------------
+
+import os
+
+import numpy as np
+
+import emcee ### for autocorrelation analysis
+
+from optparse import OptionParser
+
+#-------------------------------------------------
+
+parser = OptionParser(usage=usage, description=description)
+
+parser.add_option('-v', '--verbose', default=False, action='store_true')
+
+parser.add_option('-o', '--output-dir', default='.', type='string')
+parser.add_option('-t', '--tag', default='', type='string')
+
+opts, args = parser.parse_args()
+
+assert len(args)==1, 'please supply exactly 1 input argument\n%s'%usage
+
+if not os.path.exists(opts.output_dir):
+    os.makedirs(opts.output_dir)
+
+if opts.tag:
+    opts.tag = "_"+opts.tag
+
+#-------------------------------------------------
+
+raise NotImplementedError, '''\
+need to implement some basic plotting
+    - corner plots?
+    - wrapping into a KDE -> FITS
+    - autocorrelation analysis
+    - else?
+'''
