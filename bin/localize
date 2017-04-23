@@ -178,6 +178,12 @@ kwargs = {
     'maxDistance':opts.max_distance,
 }
 
+### FIXME:
+###    may want to just start sampler with a simple ball around the injected location using
+###    emcee.utils.simple_ball(p0, std, size=1)
+###    may lead to faster convergence to desired distribution, although we are likely to be dominated by statistical
+###    sampling error anyway.
+
 ### FIXME: 
 ###    insead of sampling the prior, we may want to sample the prior convolved with the detector network's sensitivity
 ###    basically, fold in a noise weighted measure of (F+^2 + Fx^2) somehow

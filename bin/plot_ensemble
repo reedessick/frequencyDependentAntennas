@@ -40,5 +40,7 @@ need to implement some basic plotting
     - corner plots?
     - wrapping into a KDE -> FITS
     - autocorrelation analysis
+        - emcee.autocorr.integrated_time
+        - emcee.autocorr.function
     - else?
 '''
