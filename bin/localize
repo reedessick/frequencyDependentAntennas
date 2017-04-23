@@ -191,12 +191,13 @@ if opts.verbose:
         t0 = time.time()
 
 if opts.Verbose:
-    template = '\r[%s%s]'
-    sys.stdout.write(template%('', ' '*opts.status_width))
+    template = '\r[%s%s] %.2f'
+    sys.stdout.write(template%('', ' '*opts.status_width, 0))
     sys.stdout.flush()
     for i, (p0, _, _) in enumerate(sampler.sample(p0, iterations=opts.NpriorSteps)):
-        n = int((opts.status_width+1) * float(i+1) / opts.NpriorSteps)
-        sys.stdout.write(template%('-'*n, ' '*(opts.status_width-n)))
+        f = (i+1.)/opts.NpriorSteps
+        n = int((opts.status_width)*f)
+        sys.stdout.write(template%('-'*n, ' '*(opts.status_width-n), f*100))
         sys.stdout.flush()
     sys.stdout.write("\n")
 
@@ -218,12 +219,13 @@ if opts.verbose:
         t0 = time.time()
 
 if opts.Verbose: ### print a progress bar while sampling
-    template = '\r[%s%s]'
-    sys.stdout.write(template%('', ' '*opts.status_width))
+    template = '\r[%s%s] %.2f'
+    sys.stdout.write(template%('', ' '*opts.status_width, 0))
     sys.stdout.flush()
     for i, result in enumerate(sampler.sample(p0, iterations=opts.Nsteps)):
-        n = int((opts.status_width+1) * float(i+1) / opts.Nsteps)
-        sys.stdout.write(template%('-'*n, ' '*(opts.status_width-n)))
+        f = (i+1.)/opts.Nsteps
+        n = int((opts.status_width)*f)
+        sys.stdout.write(template%('-'*n, ' '*(opts.status_width-n), f*100))
         sys.stdout.flush()
     sys.stdout.write("\n")
 
@@ -238,7 +240,7 @@ if opts.verbose:
     print( 'writing output to : %s'%filename )
 
 file_obj = open(filename, 'w')
-print >> file_obj, '    lnprob       theta        phi         psi         iota    distance[Mpc]'
+print >> file_obj, '#   lnprob       theta        phi         psi         iota    distance[Mpc]'
 for walker in xrange(opts.Nwalkers):
     for iteration in xrange(opts.Nsteps):
         lnpost = sampler.lnprobability[walker, iteration]
