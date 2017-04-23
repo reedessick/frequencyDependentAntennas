@@ -71,6 +71,8 @@ parser.add_option('-N', '--Nwalkers', default=250, type='int',
     help='the number of walkers for the ensemble sampler')
 parser.add_option('-n', '--Nsteps', default=1000, type='int',
     help='the number of steps each walker will take')
+parser.add_option('', '--threads', default=1, type='int',
+    help='the number of threads used when sampling the posterior')
 parser.add_option('', '--NpriorSteps', default=100, type='int', 
     help='the number of steps taken when sampling from the prior')
 
@@ -176,6 +178,10 @@ kwargs = {
     'maxDistance':opts.max_distance,
 }
 
+### FIXME: 
+###    insead of sampling the prior, we may want to sample the prior convolved with the detector network's sensitivity
+###    basically, fold in a noise weighted measure of (F+^2 + Fx^2) somehow
+###    this may be more trouble than it's worth
 sampler = emcee.EnsembleSampler(opts.Nwalkers, Ndim, utils.lnPrior, kwargs=kwargs)
 
 p0 = np.random.rand(opts.Nwalkers, Ndim)
@@ -211,7 +217,14 @@ if opts.time:
 
 if opts.verbose:
     print( 'setting up sampler' )
-sampler = emcee.EnsembleSampler(opts.Nwalkers, Ndim, utils.lnPosterior, args=args, kwargs=kwargs)
+sampler = emcee.EnsembleSampler(
+    opts.Nwalkers, 
+    Ndim, 
+    utils.lnPosterior, 
+    args=args, 
+    kwargs=kwargs, 
+    threads=opts.threads,
+)
 
 if opts.verbose:
     print( 'running sampler' )
@@ -235,11 +248,30 @@ else: ### just sample silently
 if opts.time:
     print( '    %.3f sec'%(time.time()-t0) )
 
+#------------------------
+### write the output into a file
+
 filename = '%s/localize%s.txt'%(opts.output_dir, opts.tag)
 if opts.verbose:
     print( 'writing output to : %s'%filename )
 
 file_obj = open(filename, 'w')
+
+### report how the sampler performed
+message = 'acceptance_fraction : %s'%(' '.join('%.5f'%_ for _ in sampler.acceptance_fraction))
+if opts.verbose:
+    print( message )
+print >> file_obj, '# '+message
+
+try:
+    message = 'autocorrelation length : %s'%(' '.join('%.5f'%_ for _ in sampler.acor))
+except emcee.autocorr.AutocorrError: # chain is too short
+    message = 'chain is too short for autocorrelation analysis'
+if opts.verbose:
+    print( message )
+print >> file_obj, '# '+message
+
+### report the samples
 print >> file_obj, '#   lnprob       theta        phi         psi         iota    distance[Mpc]'
 for walker in xrange(opts.Nwalkers):
     for iteration in xrange(opts.Nsteps):
