@@ -141,19 +141,19 @@ def cumsum_snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False 
 
 #------------------------
 
-def lnLikelihood( theta, phi, psi, iota, distance, freqs, data, h, detectors, zeroFreq=False, **kwargs ):
+def lnLikelihood( (theta, phi, psi, iota, distance), freqs, data, h, detectors, zeroFreq=False, **kwargs ):
     """
     log(likelihood) of this template against this data
     """
     hpf, hxf = h2pol(h, iota)
     return np.sum([0.5*snr(freqs, detector, datum, hpf, hxf, theta, phi, psi, zeroFreq=zeroFreq)**2 for detector, datum in zip(detectors, data)])
 
-def likelihood( theta, phi, psi, iota, distance, freqs, data, h, detectors, zeroFreq=False, **kwargs ):
-    return np.exp(lnLikelihood(theta, phi, psi, iota, distance, freqs, data, h, detectors, zeroFreq=zeroFreq))
+def likelihood( (theta, phi, psi, iota, distance), freqs, data, h, detectors, zeroFreq=False, **kwargs ):
+    return np.exp(lnLikelihood((theta, phi, psi, iota, distance), freqs, data, h, detectors, zeroFreq=zeroFreq))
 
 #---
 
-def lnPrior( theta, phi, psi, iota, distance, minDistance=0, maxDistance=1000, **kwargs ):
+def lnPrior( (theta, phi, psi, iota, distance), minDistance=0, maxDistance=1000, **kwargs ):
     """
     log(prior) of extrinsic parameters
     """
@@ -170,17 +170,17 @@ def lnPrior( theta, phi, psi, iota, distance, minDistance=0, maxDistance=1000, *
 
     return np.log(np.sin(theta)) + np.log(np.sin(iota)) + 2*np.log(distance)
 
-def prior( theta, phi, psi, iota, distance, minDistance=0, maxDistance=1000, **kwargs ):
-    return np.exp(lnPrior(theta, phi, psi, iota, distance, minDistance=minDistance, maxDistance=maxDistance))
+def prior( (theta, phi, psi, iota, distance), minDistance=0, maxDistance=1000, **kwargs ):
+    return np.exp(lnPrior((theta, phi, psi, iota, distance), minDistance=minDistance, maxDistance=maxDistance))
 
 #---
 
-def lnPosterior( theta, phi, psi, iota, distance, freqs, data, h, detectors, zeroFreq=False, minDistance=0, maxDistance=1000, **kwargs ):
+def lnPosterior( (theta, phi, psi, iota, distance), freqs, data, h, detectors, zeroFreq=False, minDistance=0, maxDistance=1000, **kwargs ):
     """
     log(posterior) of this template and extrinsic params against this data
     NOTE: this is not strictly normalized, so it isn't exactly the posterior
     """
-    return lnLikelihood(theta, phi, psi, iota, distance, freqs, data, h, detectors, zeroFreq=zeroFreq) + lnPrior(theta, phi, psi, iota, distance, minDistance=minDistance, maxDistance=maxDistance)
+    return lnLikelihood((theta, phi, psi, iota, distance), freqs, data, h, detectors, zeroFreq=zeroFreq) + lnPrior((theta, phi, psi, iota, distance), minDistance=minDistance, maxDistance=maxDistance)
 
-def posterior( theta, phi, psi, iota, distance, freqs, data, h, detectors, zeroFreq=False, minDistance=0, maxDistance=1000, **kwargs ):
-    return np.exp(lnPosterior(theta, phi, psi, iota, distance, freqs, data, h, detectors, zeroFreq=zeroFreq, minDistance=minDistance, maxDistance=maxDistance))
+def posterior( (theta, phi, psi, iota, distance), freqs, data, h, detectors, zeroFreq=False, minDistance=0, maxDistance=1000, **kwargs ):
+    return np.exp(lnPosterior((theta, phi, psi, iota, distance), freqs, data, h, detectors, zeroFreq=zeroFreq, minDistance=minDistance, maxDistance=maxDistance))

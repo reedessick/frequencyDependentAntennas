@@ -10,6 +10,9 @@ author = "Reed Essick"
 #-------------------------------------------------
 
 import os
+import sys
+
+import time
 
 import numpy as np
 import simUtils as utils
@@ -43,6 +46,11 @@ parser = OptionParser(usage=usage, description=description)
 ### output options
 
 parser.add_option('-v', '--verbose', default=False, action='store_true')
+parser.add_option('-V', '--Verbose', default=False, action='store_true',
+    help='print progress bar during sampling')
+parser.add_option('', '--status-width', default=100, type='int',
+    help='the width of the status bar printed if --Verbose is supplied. Default=100')
+parser.add_option('', '--time', default=False, action='store_true')
 
 parser.add_option('-o', '--output-dir', default='.', type='string')
 parser.add_option('-t', '--tag', default='', type='string')
@@ -120,6 +128,8 @@ if opts.args_are_degrees:
     psi *= rad2deg
     iota *= rad2deg
 
+opts.verbose = opts.verbose or opts.Verbose or opts.time
+
 #-------------------------------------------------
 
 if opts.verbose:
@@ -166,8 +176,6 @@ kwargs = {
     'maxDistance':opts.max_distance,
 }
 
-if opts.verbose:
-    print( 'sampling from prior to get starting points' )
 sampler = emcee.EnsembleSampler(opts.Nwalkers, Ndim, utils.lnPrior, kwargs=kwargs)
 
 p0 = np.random.rand(opts.Nwalkers, Ndim)
@@ -177,9 +185,26 @@ p0[:,2] *= 2*np.pi
 p0[:,3] *= np.pi
 p0[:,4] = opts.min_distance + (opts.max_distance-opts.min_distance)*p0[:,4]
 
-sampler.run_mcmc(p0, opts.NpriorSteps)
-p0 = sampler.chain[:,-1,:] ### take the last point from all walkers as the starting point
-                           ### should represent the prior reasonably well
+if opts.verbose:
+    print( 'sampling from prior to get starting points' )
+    if opts.time:
+        t0 = time.time()
+
+if opts.Verbose:
+    template = '\r[%s%s]'
+    sys.stdout.write(template%('', ' '*opts.status_width))
+    sys.stdout.flush()
+    for i, (p0, _, _) in enumerate(sampler.sample(p0, iterations=opts.NpriorSteps)):
+        n = int((opts.status_width+1) * float(i+1) / opts.NpriorSteps)
+        sys.stdout.write(template%('-'*n, ' '*(opts.status_width-n)))
+        sys.stdout.flush()
+    sys.stdout.write("\n")
+
+else:
+    p0, _, _ = sampler.run_mcmc(p0, opts.NpriorSteps)
+
+if opts.time:
+    print( '    %.3f sec'%(time.time()-t0) )
 
 #------------------------
 
@@ -189,17 +214,34 @@ sampler = emcee.EnsembleSampler(opts.Nwalkers, Ndim, utils.lnPosterior, args=arg
 
 if opts.verbose:
     print( 'running sampler' )
-sampler.run_mcmc(p0, opts.Nsteps)
+    if opts.time:
+        t0 = time.time()
+
+if opts.Verbose: ### print a progress bar while sampling
+    template = '\r[%s%s]'
+    sys.stdout.write(template%('', ' '*opts.status_width))
+    sys.stdout.flush()
+    for i, result in enumerate(sampler.sample(p0, iterations=opts.Nsteps)):
+        n = int((opts.status_width+1) * float(i+1) / opts.Nsteps)
+        sys.stdout.write(template%('-'*n, ' '*(opts.status_width-n)))
+        sys.stdout.flush()
+    sys.stdout.write("\n")
+
+else: ### just sample silently
+    sampler.run_mcmc(p0, opts.Nsteps)
+
+if opts.time:
+    print( '    %.3f sec'%(time.time()-t0) )
 
 filename = '%s/localize%s.txt'%(opts.output_dir, opts.tag)
 if opts.verbose:
     print( 'writing output to : %s'%filename )
 
 file_obj = open(filename, 'w')
-print >> file_obj, 'lnprob theta phi psi iota distance[Mpc]'
+print >> file_obj, '    lnprob       theta        phi         psi         iota    distance[Mpc]'
 for walker in xrange(opts.Nwalkers):
     for iteration in xrange(opts.Nsteps):
         lnpost = sampler.lnprobability[walker, iteration]
         params = sampler.chain[walker, iteration]
-        print >> file_obj, '%.9f %.9f %.9f %.9f. %.9f %.9f'%tuple([lnpost]+list(params))
+        print >> file_obj, '%4.9f %1.9f %1.9f %1.9f %1.9f %6.9f'%tuple([lnpost]+list(params))
 file_obj.close()
