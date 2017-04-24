@@ -159,6 +159,12 @@ iota=0
 distance=50
 tac=0
 
+### values for sampler
+Nprior=1000
+Nsteps=1000
+Nwalk=50
+threads=10
+
 ### single IFO runs
 for ifo in H L
 do
@@ -167,10 +173,10 @@ do
         -o localize \
         -t $ifo \
         -i $ifo \
-        --NpriorSteps 1000 \
-        --Nwalkers 50 \
-        --Nsteps 1000 \
-        --threads 10 \
+        --NpriorSteps $Nprior \
+        --Nwalkers $Nwalk \
+        --Nsteps $Nsteps \
+        --threads $threads \
         --args-are-deg \
         $theta $phi $psi $iota $distance $tac
 
@@ -195,10 +201,10 @@ localize \
     -o localize \
     -t HL \
     -i H -i L \
-    --NpriorSteps 1000 \
-    --Nwalkers 50 \
-    --Nsteps 1000 \
-    --threads 10 \
+    --NpriorSteps $Nprior \
+    --Nwalkers $Nwalk \
+    --Nsteps $Nsteps \
+    --threads $threads \
     --args-are-deg \
     $theta $phi $psi $iota $distance $tac
 
