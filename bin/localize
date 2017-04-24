@@ -191,6 +191,10 @@ kwargs = {
     'maxT0':opts.max_tac,
 }
 
+### FIXME: 
+###    write data and paramters out to file so we can pick up localization where we left off?
+###    this could be another option for how to start the sampler. Read in the last spot from an existing run!
+
 ### set up the starting point
 if opts.sample_ball:
     if opts.verbose:
