@@ -124,11 +124,11 @@ assert np.all([known_detectors.has_key(ifo) for ifo in opts.instrument]), 'pleas
 assert len(args)==5, 'please supply exactly 5 input arguments\n%s'%usage
 theta, phi, psi, iota, distance = [float(_) for _ in args]
 if opts.args_are_degrees:
-    rad2deg = 180/np.pi
-    theta *= rad2deg
-    phi *= rad2deg
-    psi *= rad2deg
-    iota *= rad2deg
+    deg2rad = np.pi/180
+    theta *= deg2rad
+    phi *= deg2rad
+    psi *= deg2rad
+    iota *= deg2rad
 
 opts.verbose = opts.verbose or opts.Verbose or opts.time
 
@@ -262,6 +262,12 @@ if opts.verbose:
     print( 'writing output to : %s'%filename )
 
 file_obj = open(filename, 'w')
+print >> file_obj, '# theta : %.5f'%theta
+print >> file_obj, '# phi : %.5f'%phi
+print >> file_obj, '# psi : %.5f'%psi
+print >> file_obj, '# iota : %.5f'%iota
+print >> file_obj, '# distanceMpc : %.5f'%distance
+print >> file_obj, '# Nwalkers : %d'%opts.Nwalkers
 
 ### report how the sampler performed
 message = 'acceptance_fraction : %s'%(' '.join('%.5f'%_ for _ in sampler.acceptance_fraction))
@@ -278,10 +284,10 @@ if opts.verbose:
 print >> file_obj, '# '+message
 
 ### report the samples
-print >> file_obj, '#   lnprob       theta        phi         psi         iota    distance[Mpc]'
+print >> file_obj, 'k lnprob       theta        phi         psi         iota    distanceMpc'
 for walker in xrange(opts.Nwalkers):
     for iteration in xrange(opts.Nsteps):
         lnpost = sampler.lnprobability[walker, iteration]
         params = sampler.chain[walker, iteration]
-        print >> file_obj, '%4.9f %1.9f %1.9f %1.9f %1.9f %6.9f'%tuple([lnpost]+list(params))
+        print >> file_obj, '%d %4.9f %1.9f %1.9f %1.9f %1.9f %6.9f'%tuple([walker, lnpost]+list(params))
 file_obj.close()

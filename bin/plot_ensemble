@@ -12,7 +12,19 @@ import numpy as np
 
 import emcee ### for autocorrelation analysis
 
+import matplotlib
+matplotlib.use('Agg')
+from matplotlib import pyplot as plt
+plt.rcParams['text.usetex'] = True
+
 from optparse import OptionParser
+
+#-------------------------------------------------
+
+axpos = [0.03, 0.03, 0.94, 0.94]
+figsize = (9, 5)
+
+deg2rad = np.pi/180
 
 #-------------------------------------------------
 
@@ -22,6 +34,27 @@ parser.add_option('-v', '--verbose', default=False, action='store_true')
 
 parser.add_option('-o', '--output-dir', default='.', type='string')
 parser.add_option('-t', '--tag', default='', type='string')
+
+### reference parameters
+
+parser.add_option('', '--theta', default=None, type='float',
+    help='the injected parameter. Will be annotated on plots')
+parser.add_option('', '--phi', default=None, type='float',
+    help='the injected parameter. Will be annotated on plots')
+parser.add_option('', '--psi', default=None, type='float',
+    help='the injected parameter. Will be annotated on plots')
+parser.add_option('', '--iota', default=None, type='float',
+    help='the injected parameter. Will be annotated on plots')
+parser.add_option('', '--distanceMpc', default=None, type='float',
+    help='the injected parameter. Will be annotated on plots')
+
+parser.add_option('', '--angles-are-deg', default=False, action='store_true')
+
+### plotting options
+parser.add_option('', '--scatter-color', default='b', type='string',
+    help='color used in skymap scatter plot')
+parser.add_option('', '--scatter-alpha', default=0.1, type='float',
+    help='alpha used in skymap scatter plot')
 
 opts, args = parser.parse_args()
 
@@ -33,14 +66,88 @@ if not os.path.exists(opts.output_dir):
 if opts.tag:
     opts.tag = "_"+opts.tag
 
+if opts.angles_are_deg:
+    if opts.theta!=None: 
+        opts.theta *= deg2rad
+    if opts.phi!=None: 
+        opts.phi *= deg2rad
+    if opts.psi!=None: 
+        opts.psi *= deg2rad
+    if opts.iota!=None: 
+        opts.iota *= deg2rad
+
+if opts.phi > np.pi:
+    opts.phi -= 2*np.pi
+
 #-------------------------------------------------
 
+if opts.verbose:
+    print( 'reading ensemble of samples from : '+args[0] )
+samples = np.genfromtxt(args[0], skiprows=8, names=True)
+samples['phi'][samples['phi']>np.pi] -= 2*np.pi ### wrap for plotting in mollweide projection
+
+# columns are :
+#   k (walker number)
+#   lnprob
+#   theta
+#   phi
+#   psi
+#   iota
+#   distanceMpc
+
+#-------------------------------------------------
+
+### plot skymap first
+if opts.verbose:
+    print( '(scatter) plot skymap on mollweide projection' )
+
+fig = plt.figure(figsize=figsize)
+ax = fig.add_axes(axpos, projection='mollweide')
+
+### FIXME: may want to color points by their lnprob?
+ax.plot( 
+    samples['phi'], 
+    samples['theta'], 
+    linestyle='none', 
+    marker='o', 
+    markersize=2, 
+    alpha=opts.scatter_alpha, 
+    markeredgecolor=opts.scatter_color, 
+    markerfacecolor=opts.scatter_color,
+)
+
+### decorate
+ax.grid(True, which='both')
+if (opts.phi!=None) and (opts.theta!=None):
+    ax.plot(opts.phi, opts.theta, marker='x', markersize=10, color='r', alpha=1.0 )
+
+figname = "%s/ensemble-skymap%s.png"%(opts.output_dir, opts.tag)
+if opts.verbose:
+    print( '    saving : '+figname )
+fig.savefig(figname)
+plt.close(figname)
+
+### smoothed skymap
+if opts.verbose:
+    print( 'smoothed skymap' )
 raise NotImplementedError, '''\
-need to implement some basic plotting
-    - corner plots?
-    - wrapping into a KDE -> FITS
-    - autocorrelation analysis
-        - emcee.autocorr.integrated_time
-        - emcee.autocorr.function
-    - else?
-'''
+wrap skymap into a KDE -> FITS'''
+
+#------------------------
+
+### corner plot of all extrinsic parameters
+if opts.verbose:
+    print( 'corner plot' )
+
+raise NotImplementedError, '''\
+corner plots'''
+
+#------------------------
+
+### autocorrelation analysis
+if opts.verbose:
+    print( 'autocorrelation analysis' )
+raise NotImplementedError, '''\
+autocorrelation analysis
+    - emcee.autocorr.integrated_time
+    - emcee.autocorr.function'''
