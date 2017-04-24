@@ -37,6 +37,7 @@ deg2rad = np.pi/180
 rad2deg = 1./deg2rad
 
 axpos = [0.03, 0.03, 0.94, 0.94]
+figsize = (9, 5)
 
 #-------------------------------------------------
 
@@ -238,12 +239,14 @@ if opts.heatmap:
         ('max with $F(f)$ - max with $F(0)$',   'diff', 'mollweide-diff_max',  good_max-bad_max),
         ('mean with $F(f)$ - mean with $F(0)$', 'diff', 'mollweide-diff_mean', good_mean-bad_mean),
     ]:
-        fig = plt.figure()
+        fig = plt.figure(figsize=figsize)
         ax = fig.add_axes(axpos, projection='mollweide')
 
         ax.set_title(title)
 
         lalinf_plot.healpix_heatmap( x, cmap=plt.get_cmap(opts.color_map) )
+
+        ax.grid(True, which='both')
 
         cb = plt.colorbar(orientation='horizontal', shrink=0.8)
         cb.set_label(label)
@@ -307,6 +310,8 @@ for ind, (theta, phi) in enumerate(opts.theta_phi):
 
         ax.set_ylabel('$\psi$ [$^\circ$]')
         ax.set_xlabel('$\cos\iota$')
+
+        ax.grid(True, which='both')
 
         cb = plt.colorbar(imag, orientation='vertical', shrink=0.9)
         cb.set_label(label)

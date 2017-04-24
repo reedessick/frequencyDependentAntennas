@@ -25,6 +25,7 @@ from optparse import OptionParser
 #-------------------------------------------------
 
 axpos = [0.03, 0.03, 0.94, 0.94]
+figsize = (9, 5)
 
 rad2deg = 180/np.pi
 
@@ -134,12 +135,14 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
     title = "$fL/c = %.3f$"%(freqs[ind])
 
     #--- total magnitude
-    fig = plt.figure()
+    fig = plt.figure(figsize=figsize)
     ax = fig.add_axes(axpos, projection='mollweide')
+
+    ax.set_title(title)
 
     lalinf_plot.healpix_heatmap( np.abs(fp)**2+np.abs(fx)**2, cmap=plt.get_cmap(opts.color_map) )
 
-    ax.set_title(title)
+    ax.grid(True, which='both')
 
     cb = plt.colorbar(orientation='horizontal', shrink=0.8)
     cb.set_label('$|F_+|^2+|F_\\times|^2$')
@@ -152,12 +155,14 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
     plt.close(fig)
 
     #--- F+ magnitude
-    fig = plt.figure()
+    fig = plt.figure(figsize=figsize)
     ax = fig.add_axes(axpos, projection='mollweide')
 
     ax.set_title(title)
 
     lalinf_plot.healpix_heatmap( np.abs(fp)**2, cmap=plt.get_cmap(opts.color_map) )
+
+    ax.grid(True, which='both')
 
     cb = plt.colorbar(orientation='horizontal', shrink=0.8)
     cb.set_label('$|F_+|^2$')
@@ -170,12 +175,14 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
     plt.close(fig)
 
     #--- F+ phase
-    fig = plt.figure()
+    fig = plt.figure(figsize=figsize)
     ax = fig.add_axes(axpos, projection='mollweide')
 
     ax.set_title(title)
 
     lalinf_plot.healpix_heatmap( phs(fp)*rad2deg, cmap=plt.get_cmap(opts.color_map) )
+
+    ax.grid(True, which='both')
 
     cb = plt.colorbar(orientation='horizontal', shrink=0.8)
     cb.set_label('phase $F_+$ [$^\circ$]')
@@ -188,12 +195,14 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
     plt.close(fig)
 
     #--- Fx magnitude
-    fig = plt.figure()
+    fig = plt.figure(figsize=figsize)
     ax = fig.add_axes(axpos, projection='mollweide')
 
     ax.set_title(title)
 
     lalinf_plot.healpix_heatmap( np.abs(fx)**2, cmap=plt.get_cmap(opts.color_map) )
+
+    ax.grid(True, which='both')
 
     cb = plt.colorbar(orientation='horizontal')
     cb.set_label('$|F_\\times|^2$')
@@ -206,12 +215,14 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
     plt.close(fig)
 
     #--- Fx phase
-    fig = plt.figure()
+    fig = plt.figure(figsize=figsize)
     ax = fig.add_axes(axpos, projection='mollweide')
 
     ax.set_title(title)
 
     lalinf_plot.healpix_heatmap( phs(fx)*rad2deg, cmap=plt.get_cmap(opts.color_map) )
+
+    ax.grid(True, which='both')
 
     cb = plt.colorbar(orientation='horizontal')
     cb.set_label('phase $F_\\times$ [$^\circ$]')
