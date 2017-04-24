@@ -25,23 +25,11 @@ from optparse import OptionParser
 #-------------------------------------------------
 
 axpos = [0.03, 0.03, 0.94, 0.94]
-figsize = (9, 5)
 
 rad2deg = 180/np.pi
 
 def phs( x ):
-    imag = x.imag
-    real = x.real
-
-    ans = np.empty_like(x)
-
-    t = real==0
-    ans[t] = 0.5*np.pi
-
-    t = real!=0
-    ans[t] = np.arctan(imag[t]/real[t])
-
-    return ans
+    return np.arctan2(x.imag, x.real)
 
 #-------------------------------------------------
 
@@ -135,7 +123,7 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
     title = "$fL/c = %.3f$"%(freqs[ind])
 
     #--- total magnitude
-    fig = plt.figure(figsize=figsize)
+    fig = plt.figure()
     ax = fig.add_axes(axpos, projection='mollweide')
 
     ax.set_title(title)
@@ -155,7 +143,7 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
     plt.close(fig)
 
     #--- F+ magnitude
-    fig = plt.figure(figsize=figsize)
+    fig = plt.figure()
     ax = fig.add_axes(axpos, projection='mollweide')
 
     ax.set_title(title)
@@ -175,7 +163,7 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
     plt.close(fig)
 
     #--- F+ phase
-    fig = plt.figure(figsize=figsize)
+    fig = plt.figure()
     ax = fig.add_axes(axpos, projection='mollweide')
 
     ax.set_title(title)
@@ -186,7 +174,7 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     cb = plt.colorbar(orientation='horizontal', shrink=0.8)
     cb.set_label('phase $F_+$ [$^\circ$]')
-    cb.set_clim(vmin=-90, vmax=90)
+    cb.set_clim(vmin=-180, vmax=180)
 
     figname = "%s/phsF+_%04d%s.png"%(opts.output_dir, ind, opts.tag)
     if opts.verbose:
@@ -194,8 +182,46 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
     fig.savefig(figname)
     plt.close(fig)
 
+    #--- F+ real
+    fig = plt.figure()
+    ax = fig.add_axes(axpos, projection='mollweide')
+
+    ax.set_title(title)
+
+    lalinf_plot.healpix_heatmap( fp.real, cmap=plt.get_cmap(opts.color_map) )
+
+    ax.grid(True, which='both')
+
+    cb = plt.colorbar(orientation='horizontal', shrink=0.8)
+    cb.set_label('$\mathcal{R}\{F_+\}$')
+
+    figname = "%s/realF+_%04d%s.png"%(opts.output_dir, ind, opts.tag)
+    if opts.verbose:
+        print "    "+figname
+    fig.savefig(figname)
+    plt.close(fig)
+
+    #--- F+ imag
+    fig = plt.figure()
+    ax = fig.add_axes(axpos, projection='mollweide')
+
+    ax.set_title(title)
+
+    lalinf_plot.healpix_heatmap( fp.imag, cmap=plt.get_cmap(opts.color_map) )
+
+    ax.grid(True, which='both')
+
+    cb = plt.colorbar(orientation='horizontal', shrink=0.8)
+    cb.set_label('$\mathcal{I}\{F_+\}$')
+
+    figname = "%s/imagF+_%04d%s.png"%(opts.output_dir, ind, opts.tag)
+    if opts.verbose:
+        print "    "+figname
+    fig.savefig(figname)
+    plt.close(fig)
+
     #--- Fx magnitude
-    fig = plt.figure(figsize=figsize)
+    fig = plt.figure()
     ax = fig.add_axes(axpos, projection='mollweide')
 
     ax.set_title(title)
@@ -215,7 +241,7 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
     plt.close(fig)
 
     #--- Fx phase
-    fig = plt.figure(figsize=figsize)
+    fig = plt.figure()
     ax = fig.add_axes(axpos, projection='mollweide')
 
     ax.set_title(title)
@@ -226,10 +252,49 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     cb = plt.colorbar(orientation='horizontal')
     cb.set_label('phase $F_\\times$ [$^\circ$]')
-    cb.set_clim(vmin=-90, vmax=90)
+    cb.set_clim(vmin=-180, vmax=180)
 
     figname = "%s/phsFx_%04d%s.png"%(opts.output_dir, ind, opts.tag)
     if opts.verbose:
         print "    "+figname
     fig.savefig(figname)
     plt.close(fig)
+
+    #--- Fx real
+    fig = plt.figure()
+    ax = fig.add_axes(axpos, projection='mollweide')
+
+    ax.set_title(title)
+
+    lalinf_plot.healpix_heatmap( fx.real, cmap=plt.get_cmap(opts.color_map) )
+
+    ax.grid(True, which='both')
+
+    cb = plt.colorbar(orientation='horizontal')
+    cb.set_label(' $\mathcal{R}\{F_\\times\}$')
+
+    figname = "%s/realFx_%04d%s.png"%(opts.output_dir, ind, opts.tag)
+    if opts.verbose:
+        print "    "+figname
+    fig.savefig(figname)
+    plt.close(fig)
+
+    #--- Fx imag
+    fig = plt.figure()
+    ax = fig.add_axes(axpos, projection='mollweide')
+
+    ax.set_title(title)
+
+    lalinf_plot.healpix_heatmap( fx.imag, cmap=plt.get_cmap(opts.color_map) )
+
+    ax.grid(True, which='both')
+
+    cb = plt.colorbar(orientation='horizontal')
+    cb.set_label('$\mathcal{I}\{F_\\times\}$')
+
+    figname = "%s/imagFx_%04d%s.png"%(opts.output_dir, ind, opts.tag)
+    if opts.verbose:
+        print "    "+figname
+    fig.savefig(figname)
+    plt.close(fig)
+
