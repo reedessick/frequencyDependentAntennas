@@ -151,6 +151,15 @@ done
 
 #--- some basic localization
 
+### values to inject
+theta=40
+phi=300
+psi=0
+iota=0
+distance=50
+tac=0
+
+### single IFO runs
 for ifo in H L
 do
     localize \
@@ -163,19 +172,24 @@ do
         --Nsteps 1000 \
         --threads 10 \
         --args-are-deg \
-        40 300 0 0 100 0
+        $theta $phi $psi $iota $distance $tac
 
     plot_ensemble \
         -v 
         -o localize/ \
         -t $ifo \
-        --scatter-alpha 0.01 \
-        --theta 40 \
-        --phi 300 \
+        --alpha 0.01 \
+        --theta $theta \
+        --phi $phi \
+        --psi $psi \
+        --iota $iota \
+        --distanceMpc $distance \
+        --timeAtCoalescence $tac \
         --angles-are-deg \
         localize/localize_${ifo}.txt 
 done
 
+### 2-detector aLIGO network
 localize \
     --time -V \
     -o localize \
@@ -186,14 +200,18 @@ localize \
     --Nsteps 1000 \
     --threads 10 \
     --args-are-deg \
-    40 300 0 0 100 0
+    $theta $phi $psi $iota $distance $tac
 
 plot_ensemble \
     -v 
     -o localize/ \
     -t HL \
-    --scatter-alpha 0.01 \
-    --theta 40 \
-    --phi 300 \
+    --alpha 0.01 \
+    --theta $theta \
+    --phi $phi \
+    --psi $psi \
+    --iota $iota \
+    --distanceMpc $distance \
+    --timeAtCoalescence $tac \
     --angles-are-deg \
     localize/localize_HL.txt 

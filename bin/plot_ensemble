@@ -52,14 +52,16 @@ parser.add_option('', '--iota', default=None, type='float',
     help='the injected parameter. Will be annotated on plots')
 parser.add_option('', '--distanceMpc', default=None, type='float',
     help='the injected parameter. Will be annotated on plots')
+parser.add_option('', '--timeAtCoalescence', default=None, type='float',
+    help='the injected parameter. Will be annotated on plots')
 
 parser.add_option('', '--angles-are-deg', default=False, action='store_true')
 
 ### plotting options
-parser.add_option('', '--scatter-color', default='b', type='string',
-    help='color used in skymap scatter plot')
-parser.add_option('', '--scatter-alpha', default=0.1, type='float',
-    help='alpha used in skymap scatter plot')
+parser.add_option('', '--color', default='r', type='string',
+    help='color used for markers in skymap scatter and truth annotations in corner')
+parser.add_option('', '--alpha', default=0.1, type='float',
+    help='alpha used for markers in skymap scatter')
 
 opts, args = parser.parse_args()
 
@@ -116,9 +118,9 @@ ax.plot(
     linestyle='none', 
     marker='o', 
     markersize=2, 
-    alpha=opts.scatter_alpha, 
-    markeredgecolor=opts.scatter_color, 
-    markerfacecolor=opts.scatter_color,
+    alpha=opts.alpha, 
+    markeredgecolor=opts.color, 
+    markerfacecolor=opts.color,
 )
 
 ### decorate
@@ -157,10 +159,21 @@ labels = [
     '$t_0$ [sec]',
 ]
 
+truths = [
+    opts.theta*rad2deg if opts.theta!=None else None,
+    opts.phi*rad2deg if opts.phi!=None else None,
+    opts.psi*rad2deg if opts.psi!=None else None,
+    opts.iota*rad2deg if opts.iota!=None else None,
+    opts.distanceMpc,
+    opts.timeAtCoalescence,
+]
+
 # delegate to generate figure
 fig = corner.corner(
     data, 
     labels=labels,
+    truths=truths,
+    truth_color=opts.color,
     quantiles=[0.10, 0.50, 0.90],
     show_titles=True, 
     title_kwargs={"fontsize": 12},
