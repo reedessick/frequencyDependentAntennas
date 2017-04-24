@@ -5,8 +5,12 @@ This module implements an expression for the frequency-dependent antenna respons
 ## To Do:
 
   - develop a likelihood functional given a PSD
+    - need to do this for line-of-sight coordinates (perform the conversion, then delegate to existing functions)
+    - this will likely help the sampler converge much better
+        - better acceptance fraction?
   - plug the likelihood into emcee or an equivalent to sample over localization parameters
     - need to check for diagonal pp plots
+    - look at autocorrelation of chains!
     - if this doesn't work, compute the Fisher matrix for localization parameters and use that
   - set up injection sets and recover both with and without the frequency dependence in the antenna patterns
     - quantify the change in localization areas
