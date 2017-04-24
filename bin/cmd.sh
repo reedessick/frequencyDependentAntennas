@@ -148,3 +148,52 @@ do
         done
     done
 done
+
+#--- some basic localization
+
+for ifo in H L
+do
+    localize \
+        --time -V \
+        -o localize \
+        -t $ifo \
+        -i $ifo \
+        --NpriorSteps 1000 \
+        --Nwalkers 50 \
+        --Nsteps 1000 \
+        --threads 10 \
+        --args-are-deg \
+        40 300 0 0 100 0
+
+    plot_ensemble \
+        -v 
+        -o localize/ \
+        -t $ifo \
+        --scatter-alpha 0.01 \
+        --theta 40 \
+        --phi 300 \
+        --angles-are-deg \
+        localize/localize_${ifo}.txt 
+done
+
+localize \
+    --time -V \
+    -o localize \
+    -t HL \
+    -i H -i L \
+    --NpriorSteps 1000 \
+    --Nwalkers 50 \
+    --Nsteps 1000 \
+    --threads 10 \
+    --args-are-deg \
+    40 300 0 0 100 0
+
+plot_ensemble \
+    -v 
+    -o localize/ \
+    -t HL \
+    --scatter-alpha 0.01 \
+    --theta 40 \
+    --phi 300 \
+    --angles-are-deg \
+    localize/localize_HL.txt 

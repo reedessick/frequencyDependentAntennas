@@ -19,6 +19,8 @@ matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 plt.rcParams['text.usetex'] = True
 
+import corner
+
 from optparse import OptionParser
 
 #-------------------------------------------------
@@ -27,6 +29,7 @@ axpos = [0.03, 0.03, 0.94, 0.94]
 figsize = (9, 5)
 
 deg2rad = np.pi/180
+rad2deg = 1./deg2rad
 
 #-------------------------------------------------
 
@@ -95,6 +98,7 @@ samples = utils.load_ensemble( args[0] )
 #   psi
 #   iota
 #   distanceMpc
+#   timeAtCoalescence
 
 #-------------------------------------------------
 
@@ -134,8 +138,39 @@ plt.close(figname)
 if opts.verbose:
     print( 'corner plot' )
 
-raise NotImplementedError, '''\
-corner plots'''
+# set up data and labels
+data = np.array([
+    samples['theta']*rad2deg,
+    samples['phi']*rad2deg,
+    samples['psi']*rad2deg,
+    samples['iota']*rad2deg,
+    samples['distanceMpc'],
+    samples['timeAtCoalescence'],
+]).transpose()
+
+labels = [
+    r"$\theta$ [$^\circ$]", 
+    r"$\phi$ [$^\circ$]", 
+    r"$\psi$ [$^\circ$]", 
+    r"$\iota$ [$^\circ$]", 
+    '$D$ [Mpc]', 
+    '$t_0$ [sec]',
+]
+
+# delegate to generate figure
+fig = corner.corner(
+    data, 
+    labels=labels,
+    quantiles=[0.10, 0.50, 0.90],
+    show_titles=True, 
+    title_kwargs={"fontsize": 12},
+)
+
+figname = "%s/ensemble-corner%s.png"%(opts.output_dir, opts.tag)
+if opts.verbose:
+    print( '    saving : '+figname )
+fig.savefig(figname)
+plt.close(fig)
 
 #------------------------
 

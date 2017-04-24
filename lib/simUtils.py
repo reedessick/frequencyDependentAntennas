@@ -110,6 +110,12 @@ Virgo = Detector(
 
 #-------------------------------------------------
 
+def h2hAtT(freqs, h, t0):
+    """
+    add in phasing for time-at-coalescence
+    """
+    return h*np.exp(2j*np.pi*freqs*t0)
+
 def h2pol( h, iota, distance=1. ):
     '''
     map a waveform into polarization components and normalize by distance
@@ -141,19 +147,19 @@ def cumsum_snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False 
 
 #------------------------
 
-def lnLikelihood( (theta, phi, psi, iota, distance), freqs, data, h, detectors, zeroFreq=False, **kwargs ):
+def lnLikelihood( (theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=False, **kwargs ):
     """
     log(likelihood) of this template against this data
     """
-    hpf, hxf = h2pol(h, iota)
+    hpf, hxf = h2pol(h2hAtT(freqs, h, t0), iota)
     return np.sum([0.5*snr(freqs, detector, datum, hpf, hxf, theta, phi, psi, zeroFreq=zeroFreq)**2 for detector, datum in zip(detectors, data)])
 
-def likelihood( (theta, phi, psi, iota, distance), freqs, data, h, detectors, zeroFreq=False, **kwargs ):
-    return np.exp(lnLikelihood((theta, phi, psi, iota, distance), freqs, data, h, detectors, zeroFreq=zeroFreq))
+def likelihood( (theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=False, **kwargs ):
+    return np.exp(lnLikelihood((theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=zeroFreq))
 
 #---
 
-def lnPrior( (theta, phi, psi, iota, distance), minDistance=0, maxDistance=1000, **kwargs ):
+def lnPrior( (theta, phi, psi, iota, distance, t0), minDistance=0, maxDistance=1000, minT0=-1., maxT0=1., **kwargs ):
     """
     log(prior) of extrinsic parameters
     """
@@ -167,23 +173,25 @@ def lnPrior( (theta, phi, psi, iota, distance), minDistance=0, maxDistance=1000,
         return -np.infty
     if (distance<minDistance) or (distance>maxDistance):
         return -np.infty
+    if (t0<minT0) or (t0>maxT0):
+        return -np.infty
 
     return np.log(np.sin(theta)) + np.log(np.sin(iota)) + 2*np.log(distance)
 
-def prior( (theta, phi, psi, iota, distance), minDistance=0, maxDistance=1000, **kwargs ):
-    return np.exp(lnPrior((theta, phi, psi, iota, distance), minDistance=minDistance, maxDistance=maxDistance))
+def prior( (theta, phi, psi, iota, distance, t0), minDistance=0, maxDistance=1000, minT0=-1., maxT0=1., **kwargs ):
+    return np.exp(lnPrior((theta, phi, psi, iota, distance), minDistance=minDistance, maxDistance=maxDistance, minT0=minT0, maxT0=maxT0))
 
 #---
 
-def lnPosterior( (theta, phi, psi, iota, distance), freqs, data, h, detectors, zeroFreq=False, minDistance=0, maxDistance=1000, **kwargs ):
+def lnPosterior( (theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=False, minDistance=0, maxDistance=1000, minT0=-1., maxT0=1., **kwargs ):
     """
     log(posterior) of this template and extrinsic params against this data
     NOTE: this is not strictly normalized, so it isn't exactly the posterior
     """
-    return lnLikelihood((theta, phi, psi, iota, distance), freqs, data, h, detectors, zeroFreq=zeroFreq) + lnPrior((theta, phi, psi, iota, distance), minDistance=minDistance, maxDistance=maxDistance)
+    return lnLikelihood((theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=zeroFreq) + lnPrior((theta, phi, psi, iota, distance, t0), minDistance=minDistance, maxDistance=maxDistance, minT0=minT0, maxT0=maxT0)
 
-def posterior( (theta, phi, psi, iota, distance), freqs, data, h, detectors, zeroFreq=False, minDistance=0, maxDistance=1000, **kwargs ):
-    return np.exp(lnPosterior((theta, phi, psi, iota, distance), freqs, data, h, detectors, zeroFreq=zeroFreq, minDistance=minDistance, maxDistance=maxDistance))
+def posterior( (theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=False, minDistance=0, maxDistance=1000, minT0=-1., maxT0=1., **kwargs ):
+    return np.exp(lnPosterior((theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=zeroFreq, minDistance=minDistance, maxDistance=maxDistance, minT0=minT0, maxT0=maxT0))
 
 #---
 
@@ -191,7 +199,7 @@ def load_ensemble( path ):
     """
     a single place where we standardize how we load in data from ensemble.out files produced by localize
     """
-    samples = np.genfromtxt(path, skiprows=8, names=True)
+    samples = np.genfromtxt(path, skiprows=9, names=True)
     samples['phi'][samples['phi']>np.pi] -= 2*np.pi ### wrap for plotting in mollweide projection
 
     return samples
