@@ -58,9 +58,14 @@ parser.add_option('', '--timeAtCoalescence', default=None, type='float',
 parser.add_option('', '--angles-are-deg', default=False, action='store_true')
 
 ### plotting options
-parser.add_option('', '--color', default='r', type='string',
-    help='color used for markers in skymap scatter and truth annotations in corner')
-parser.add_option('', '--alpha', default=0.1, type='float',
+parser.add_option('', '--color', default='k', type='string',
+    help='color used for annotation in skymap scatter and truth annotations in corner')
+parser.add_option('', '--alpha', default=1.0, type='float',
+    help='alpha used for annotation in skymap scatter')
+
+parser.add_option('', '--scatter-color', default='r', type='string',
+    help='color used for markers in skymap scatter')
+parser.add_option('', '--scatter-alpha', default=0.1, type='float',
     help='alpha used for markers in skymap scatter')
 
 opts, args = parser.parse_args()
@@ -118,15 +123,15 @@ ax.plot(
     linestyle='none', 
     marker='o', 
     markersize=2, 
-    alpha=opts.alpha, 
-    markeredgecolor=opts.color, 
-    markerfacecolor=opts.color,
+    alpha=opts.scatter_alpha, 
+    markeredgecolor=opts.scatter_color, 
+    markerfacecolor=opts.scatter_color,
 )
 
 ### decorate
 ax.grid(True, which='both')
 if (opts.phi!=None) and (opts.theta!=None):
-    ax.plot(opts.phi, 0.5*np.pi - opts.theta, marker='x', markersize=10, color='r', alpha=1.0 )
+    ax.plot(opts.phi, 0.5*np.pi - opts.theta, marker='x', markersize=10, color=opts.color, alpha=opts.alpha )
 
 figname = "%s/ensemble-skymap%s.png"%(opts.output_dir, opts.tag)
 if opts.verbose:

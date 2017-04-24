@@ -184,7 +184,6 @@ do
         -v 
         -o localize/ \
         -t $ifo \
-        --alpha 0.01 \
         --theta $theta \
         --phi $phi \
         --psi $psi \
@@ -212,7 +211,6 @@ plot_ensemble \
     -v 
     -o localize/ \
     -t HL \
-    --alpha 0.01 \
     --theta $theta \
     --phi $phi \
     --psi $psi \
