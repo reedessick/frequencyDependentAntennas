@@ -1,0 +1,72 @@
+#!/usr/bin/env python
+
+usage = "ensemble2FITS [--options] ensemble.out new.fits"
+description = "convert an ensemble of sample points (ensemble.out) into a FITS file (new.fits)"
+author = "Reed Essick"
+
+#-------------------------------------------------
+
+import getpass ### used when writing the header for FITS file
+import time ### for DATE-OBS
+
+import numpy as np
+import healpy as hp
+
+import simUtils as utils
+
+from optparse import OptionParser
+
+#-------------------------------------------------
+
+parser = OptionParser(usage=usage, description=description)
+
+parser.add_option('-v', '--verbose', default=False, action='store_true')
+
+parser.add_option('-n', '--nside', default=64, type='int',
+    help='the healpix nside used for the final map')
+
+parser.add_option('', '--algorithm', default='greedy', type='string',
+    help='the algorithm used to generate the FITS file. Either "greedy" or "kde".\
+DEFAULT="greedy"')
+
+opts, args = parser.parse_args()
+
+assert len(args)==2, 'please supply exactly 2 input arguments\n%s'%(usage)
+ensemble, newfits = args
+
+#-------------------------------------------------
+
+### read in samples
+if opts.verbose:
+    print( "reading ensemble of samples from : "+ensemble )
+samples = utils.load_ensemble( ensemble )
+
+#---
+
+### generate FITS file
+if opts.verbose:
+    print( "generating HEALPix decomposition via --algorithm=%s"%opts.algorithm )
+
+if opts.algorithm=='greedy': ### greedy binning
+    npix = hp.nside2npix(opts.nside)
+    post = np.zeros(npix, dtype=float)
+    for ind in hp.ang2pix(opts.nside, samples['theta'], samples['phi']): ### may be inefficient...
+        post[ind] += 1
+    post /= np.sum(post)
+
+elif opts.algorithm=='kde': ### some sort of kde sampling
+    raise NotImplementedError, '''\
+write KDE (in line-of-sight frame?)'''
+
+else:
+    raise ValueError, '--algorithm=%s not understood'%opts.algorithm
+
+### write FITS file
+if opts.verbose:
+    print( 'writing : '+newfits )
+header = {
+    'COORDSYS' : 'E', ### this is what we sample in
+    'DATE-OBS' : time.strftime('%d %b %Y %H:%M:%S %Z'), ### FIXME
+    'AUTHOR' : getpass.getuser(),
+}
+hp.write_map(newfits, post, extra_header=header.items())

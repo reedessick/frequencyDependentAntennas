@@ -184,3 +184,14 @@ def lnPosterior( (theta, phi, psi, iota, distance), freqs, data, h, detectors, z
 
 def posterior( (theta, phi, psi, iota, distance), freqs, data, h, detectors, zeroFreq=False, minDistance=0, maxDistance=1000, **kwargs ):
     return np.exp(lnPosterior((theta, phi, psi, iota, distance), freqs, data, h, detectors, zeroFreq=zeroFreq, minDistance=minDistance, maxDistance=maxDistance))
+
+#---
+
+def load_ensemble( path ):
+    """
+    a single place where we standardize how we load in data from ensemble.out files produced by localize
+    """
+    samples = np.genfromtxt(path, skiprows=8, names=True)
+    samples['phi'][samples['phi']>np.pi] -= 2*np.pi ### wrap for plotting in mollweide projection
+
+    return samples

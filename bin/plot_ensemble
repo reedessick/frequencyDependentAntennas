@@ -12,6 +12,8 @@ import numpy as np
 
 import emcee ### for autocorrelation analysis
 
+import simUtils as utils
+
 import matplotlib
 matplotlib.use('Agg')
 from matplotlib import pyplot as plt
@@ -83,8 +85,7 @@ if opts.phi > np.pi:
 
 if opts.verbose:
     print( 'reading ensemble of samples from : '+args[0] )
-samples = np.genfromtxt(args[0], skiprows=8, names=True)
-samples['phi'][samples['phi']>np.pi] -= 2*np.pi ### wrap for plotting in mollweide projection
+samples = utils.load_ensemble( args[0] )
 
 # columns are :
 #   k (walker number)
@@ -107,7 +108,7 @@ ax = fig.add_axes(axpos, projection='mollweide')
 ### FIXME: may want to color points by their lnprob?
 ax.plot( 
     samples['phi'], 
-    samples['theta'], 
+    0.5*np.pi - samples['theta'], ### plot declination, not theta
     linestyle='none', 
     marker='o', 
     markersize=2, 
@@ -119,19 +120,13 @@ ax.plot(
 ### decorate
 ax.grid(True, which='both')
 if (opts.phi!=None) and (opts.theta!=None):
-    ax.plot(opts.phi, opts.theta, marker='x', markersize=10, color='r', alpha=1.0 )
+    ax.plot(opts.phi, 0.5*np.pi - opts.theta, marker='x', markersize=10, color='r', alpha=1.0 )
 
 figname = "%s/ensemble-skymap%s.png"%(opts.output_dir, opts.tag)
 if opts.verbose:
     print( '    saving : '+figname )
 fig.savefig(figname)
 plt.close(figname)
-
-### smoothed skymap
-if opts.verbose:
-    print( 'smoothed skymap' )
-raise NotImplementedError, '''\
-wrap skymap into a KDE -> FITS'''
 
 #------------------------
 
