@@ -73,8 +73,6 @@ parser.add_option('-n', '--Nsteps', default=1000, type='int',
     help='the number of steps each walker will take')
 parser.add_option('', '--threads', default=1, type='int',
     help='the number of threads used when sampling the posterior')
-parser.add_option('', '--NpriorSteps', default=100, type='int', 
-    help='the number of steps taken when sampling from the prior')
 
 parser.add_option('', '--min-distance', default=1, type='float',
     help='in Mpc. DEFAULT=1')
@@ -86,7 +84,15 @@ parser.add_option('', '--min-tac', default=-1.0, type='float',
 parser.add_option('', '--max-tac', default=+1.0, type='float',
     help='in seconds. DEFAULT=+1.0')
 
+# initial conditions
+parser.add_option('', '--NpriorSteps', default=100, type='int', 
+    help='the number of steps taken when sampling from the prior')
+
+parser.add_option('', '--sample-ball', default=False, action='store_true',
+    help='if supplied, we start the chains with a simple ball instead of sampling from the prior')
+
 ### parameters about the injected signal
+
 parser.add_option('', '--m1', default=1.4, type='float',
     help='in Msun. DEFAULT=1.4')
 parser.add_option('', '--m2', default=1.4, type='float',
@@ -148,7 +154,7 @@ deltaT = 1.0/opts.srate
 deltaF = 1.0 / (length * deltaT);
 
 #frequencies
-isco = LAL_C_SI**3/(LAL_G_SI*(opts.m1+opts.m2)*LAL_MSUN_SI) / (np.pi * 6**(3./2))
+isco = LAL_C_SI**3/(LAL_G_SI*(opts.m1+opts.m2)*LAL_MSUN_SI) / (np.pi * 6**(3./2))*5 ### extra factor of 5 is from Matt's advice
 f_max = min(float(opts.srate)/2.0, isco) ### up to Nyquist or isco
 
 ## build the waveforms!
@@ -162,7 +168,7 @@ h = lalsim.SimInspiralTaylorF2(
     opts.f_min, 
     f_max, 
     opts.f_ref,
-    distance*LAL_PC_SI*1e6,
+    LAL_PC_SI*1e6, ### normalize to 1 Mpc
     lal.CreateDict(),
 )
 freqs = np.array([h.f0+i*h.deltaF for i in np.arange(h.data.length)])
@@ -172,7 +178,7 @@ h = h.data.data ### I only care about the frequency vector
 detectors = [known_detectors[ifo] for ifo in opts.instrument]
 
 ### data
-hpf, hxf = utils.h2pol(utils.h2hAtT(freqs, h, tac), iota)
+hpf, hxf = utils.h2pol(utils.h2hAtT(freqs, h, tac), iota, distance=distance)
 data = [detector.drawNoise(freqs)+detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=False) for detector in detectors]
 
 ### set up arguments
@@ -185,47 +191,54 @@ kwargs = {
     'maxT0':opts.max_tac,
 }
 
-### FIXME:
-###    may want to just start sampler with a simple ball around the injected location using
-###    emcee.utils.simple_ball(p0, std, size=1)
-###    may lead to faster convergence to desired distribution, although we are likely to be dominated by statistical
-###    sampling error anyway.
+### set up the starting point
+if opts.sample_ball:
+    if opts.verbose:
+        print( 'sampling from a ball around injected value to get starting point' )
 
-### FIXME: 
-###    insead of sampling the prior, we may want to sample the prior convolved with the detector network's sensitivity
-###    basically, fold in a noise weighted measure of (F+^2 + Fx^2) somehow
-###    this may be more trouble than it's worth
-sampler = emcee.EnsembleSampler(opts.Nwalkers, Ndim, utils.lnPrior, kwargs=kwargs)
-
-p0 = np.random.rand(opts.Nwalkers, Ndim)
-p0[:,0] *= np.pi
-p0[:,1] *= 2*np.pi
-p0[:,2] *= 2*np.pi
-p0[:,3] *= np.pi
-p0[:,4] = opts.min_distance + (opts.max_distance-opts.min_distance)*p0[:,4]
-p0[:,5] = opts.min_tac + (opts.max_tac-opts.min_tac)*p0[:,5]
-
-if opts.verbose:
-    print( 'sampling from prior to get starting points' )
-    if opts.time:
-        t0 = time.time()
-
-if opts.Verbose:
-    template = '\r[%s%s] %.2f'
-    sys.stdout.write(template%('', ' '*opts.status_width, 0))
-    sys.stdout.flush()
-    for i, (p0, _, _) in enumerate(sampler.sample(p0, iterations=opts.NpriorSteps)):
-        f = (i+1.)/opts.NpriorSteps
-        n = int((opts.status_width)*f)
-        sys.stdout.write(template%('-'*n, ' '*(opts.status_width-n), f*100))
-        sys.stdout.flush()
-    sys.stdout.write("\n")
+    p0 = emcee.utils.sample_ball(
+        [theta, phi, psi, iota, distance, tac], 
+        [0.1, 0.1, 0.1, 0.1, 0.1*(opts.max_distance-opts.min_distance), 0.1*(opts.max_tac-opts.min_tac)], 
+        size=opts.Nwalkers,
+    )
+    ### FIXME: may want a more refined choice for std, particularly if we transition to the line-of-sight frame
 
 else:
-    p0, _, _ = sampler.run_mcmc(p0, opts.NpriorSteps)
+    ### FIXME: 
+    ###    insead of sampling the prior, we may want to sample the prior convolved with the detector network's sensitivity
+    ###    basically, fold in a noise weighted measure of (F+^2 + Fx^2) somehow
+    ###    this may be more trouble than it's worth
+    sampler = emcee.EnsembleSampler(opts.Nwalkers, Ndim, utils.lnPrior, kwargs=kwargs)
 
-if opts.time:
-    print( '    %.3f sec'%(time.time()-t0) )
+    p0 = np.random.rand(opts.Nwalkers, Ndim)
+    p0[:,0] *= np.pi
+    p0[:,1] *= 2*np.pi
+    p0[:,2] *= 2*np.pi
+    p0[:,3] *= np.pi
+    p0[:,4] = opts.min_distance + (opts.max_distance-opts.min_distance)*p0[:,4]
+    p0[:,5] = opts.min_tac + (opts.max_tac-opts.min_tac)*p0[:,5]
+
+    if opts.verbose:
+        print( 'sampling from prior to get starting points' )
+        if opts.time:
+            t0 = time.time()
+
+    if opts.Verbose:
+        template = '\r[%s%s] %.2f'
+        sys.stdout.write(template%('', ' '*opts.status_width, 0))
+        sys.stdout.flush()
+        for i, (p0, _, _) in enumerate(sampler.sample(p0, iterations=opts.NpriorSteps)):
+            f = (i+1.)/opts.NpriorSteps
+            n = int((opts.status_width)*f)
+            sys.stdout.write(template%('-'*n, ' '*(opts.status_width-n), f*100))
+            sys.stdout.flush()
+        sys.stdout.write("\n")
+
+    else:
+        p0, _, _ = sampler.run_mcmc(p0, opts.NpriorSteps)
+
+    if opts.time:
+        print( '    %.3f sec'%(time.time()-t0) )
 
 #------------------------
 
@@ -245,6 +258,9 @@ if opts.verbose:
     if opts.time:
         t0 = time.time()
 
+### FIXME: 
+###    we may want to actually print sampler.chain[:,-1,0] to file after each step so we don't have wait for the whole thing to finish.
+###    would require some thought on how to properly structure the header in the output file, etc.
 if opts.Verbose: ### print a progress bar while sampling
     template = '\r[%s%s] %.2f'
     sys.stdout.write(template%('', ' '*opts.status_width, 0))
@@ -297,6 +313,6 @@ print >> file_obj, 'k lnprob       theta        phi         psi         iota    
 for walker in xrange(opts.Nwalkers):
     for iteration in xrange(opts.Nsteps):
         lnpost = sampler.lnprobability[walker, iteration]
-        params = sampler.chain[walker, iteration]
+        params = utils.symmetries(*sampler.chain[walker, iteration]) ### ensure parameters are within reasonable ranges when we report them
         print >> file_obj, '%d %4.9f %1.9f %1.9f %1.9f %1.9f %6.9f %9.6f'%tuple([walker, lnpost]+list(params))
 file_obj.close()

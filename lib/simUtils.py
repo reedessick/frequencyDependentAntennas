@@ -12,6 +12,11 @@ import psds
 
 #-------------------------------------------------
 
+twopi = 2*np.pi
+twoIpi = 2j*np.pi
+
+#-------------------------------------------------
+
 class PSD(object):
     """
     a represenation of a PSD that is callable
@@ -69,7 +74,7 @@ class Detector(object):
         sinTheta = np.sin(theta)
         n = -np.array([np.cos(phi)*sinTheta, np.sin(phi)*sinTheta, np.cos(theta)])
         dt = np.sum(self.r*n)
-        phs = 2j*np.pi*freqs*dt
+        phs = twoIpi*freqs*dt
 
         return (Fp*hpf + Fx*hxf)*np.exp(phs)
 
@@ -114,7 +119,7 @@ def h2hAtT(freqs, h, t0):
     """
     add in phasing for time-at-coalescence
     """
-    return h*np.exp(2j*np.pi*freqs*t0)
+    return h*np.exp(twoIpi*freqs*t0)
 
 def h2pol( h, iota, distance=1. ):
     '''
@@ -147,11 +152,50 @@ def cumsum_snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False 
 
 #------------------------
 
+def symmetries( theta, phi, psi, iota, distance, t0 ):
+    """
+    enforce symmetries in parameters
+    """
+    ### enforce symmetries
+    theta = theta%twopi
+    if theta > np.pi:
+        theta = twopi-theta 
+        phi += np.pi
+    phi = phi%twopi
+    psi = psi%twopi
+    iota = iota%twopi
+    if iota > np.pi:
+        iota = twopi-iota
+
+    return theta, phi, psi, iota, distance, t0
+
+def array_symmetries( theta, phi, psi, iota, distance, t0 ):
+    '''
+    a version of symmetries that works with np.ndarray objects
+    '''
+    theta = theta%twopi
+    truth = theta>np.pi
+    theta[truth] = twopi-theta[truth]
+    phi[truth] += np.pi
+
+    phi = phi%twopi
+
+    psi = psi%twopi
+
+    iota = iota%twopi
+    truth = iota>np.pi
+    iota[truth] = twopi-iota[truth]
+
+    return theta, phi, psi, iota, distance, t0    
+
 def lnLikelihood( (theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=False, **kwargs ):
     """
     log(likelihood) of this template against this data
     """
-    hpf, hxf = h2pol(h2hAtT(freqs, h, t0), iota)
+    ### enforce symmetries
+    theta, phi, psi, iota, distance, t0 = symmetries(theta, phi, psi, iota, distance, t0)
+
+    hpf, hxf = h2pol(h2hAtT(freqs, h, t0), iota, distance=distance)
     return np.sum([0.5*snr(freqs, detector, datum, hpf, hxf, theta, phi, psi, zeroFreq=zeroFreq)**2 for detector, datum in zip(detectors, data)])
 
 def likelihood( (theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=False, **kwargs ):
@@ -163,19 +207,13 @@ def lnPrior( (theta, phi, psi, iota, distance, t0), minDistance=0, maxDistance=1
     """
     log(prior) of extrinsic parameters
     """
-    if (theta<0) or (theta>np.pi):
-        return -np.infty
-    if (phi<0) or (phi>2*np.pi):
-        return -np.infty
-    if (psi<0) or (psi>2*np.pi):
-        return -np.infty
-    if (iota<0) or (iota>np.pi):
-        return -np.infty
     if (distance<minDistance) or (distance>maxDistance):
         return -np.infty
+
     if (t0<minT0) or (t0>maxT0):
         return -np.infty
 
+    theta, phi, psi, iota, distance, t0 = symmetries(theta, phi, psi, iota, distance, t0)
     return np.log(np.sin(theta)) + np.log(np.sin(iota)) + 2*np.log(distance)
 
 def prior( (theta, phi, psi, iota, distance, t0), minDistance=0, maxDistance=1000, minT0=-1., maxT0=1., **kwargs ):
@@ -200,6 +238,7 @@ def load_ensemble( path ):
     a single place where we standardize how we load in data from ensemble.out files produced by localize
     """
     samples = np.genfromtxt(path, skiprows=9, names=True)
-    samples['phi'][samples['phi']>np.pi] -= 2*np.pi ### wrap for plotting in mollweide projection
+    samples['theta'], samples['phi'], samples['psi'], samples['iota'], samples['distanceMpc'], samples['timeAtCoalescence'] = \
+        array_symmetries(samples['theta'], samples['phi'], samples['psi'], samples['iota'], samples['distanceMpc'], samples['timeAtCoalescence'])
 
     return samples
