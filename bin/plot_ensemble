@@ -55,7 +55,7 @@ parser.add_option('', '--distanceMpc', default=None, type='float',
 parser.add_option('', '--timeAtCoalescence', default=None, type='float',
     help='the injected parameter. Will be annotated on plots')
 
-parser.add_option('', '--angles-are-deg', default=False, action='store_true')
+parser.add_option('', '--args-are-degrees', default=False, action='store_true')
 
 ### plotting options
 parser.add_option('', '--color', default='k', type='string',
@@ -78,7 +78,7 @@ if not os.path.exists(opts.output_dir):
 if opts.tag:
     opts.tag = "_"+opts.tag
 
-if opts.angles_are_deg:
+if opts.args_are_degrees:
     if opts.theta!=None: 
         opts.theta *= deg2rad
     if opts.phi!=None: 
