@@ -247,10 +247,19 @@ def likelihood( (theta, phi, psi, iota, distance, t0), freqs, data, h, detectors
 def lnPrior( (theta, phi, psi, iota, distance, t0), minDistance=0, maxDistance=1000, minT0=-1., maxT0=1., **kwargs ):
     """
     log(prior) of extrinsic parameters
+
+    we allow some flexibility in angles (extend beyond the strict periodic boundaries), but we do enforce boundaries to keep them from running to infinity
     """
+    if (theta<-np.pi) or (theta>twopi):
+        return -np.infty
+    if (phi<-twopi) or (phi>twopi):
+        return -np.infty
+    if (psi<-twopi) or (psi>twopi):
+        return -np.infty
+    if (iota<-np.pi) or (iota>twopi):
+        return -np.infty
     if (distance<minDistance) or (distance>maxDistance):
         return -np.infty
-
     if (t0<minT0) or (t0>maxT0):
         return -np.infty
 
