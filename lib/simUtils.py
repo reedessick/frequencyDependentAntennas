@@ -225,7 +225,7 @@ def lineOfSight2ThetaPhi( theta_los, phi_los, pole ):
     else:
         return theta, phi
 
-def lnLikelihood( (theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=False, pole=None, **kwargs ):
+def lnLikelihood( (theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=False, pole=None, verbose=False, **kwargs ):
     """
     log(likelihood) of this template against this data
     """
@@ -237,7 +237,12 @@ def lnLikelihood( (theta, phi, psi, iota, distance, t0), freqs, data, h, detecto
     theta, phi, psi, iota, distance, t0 = symmetries(theta, phi, psi, iota, distance, t0)
 
     hpf, hxf = h2pol(h2hAtT(freqs, h, t0), iota, distance=distance)
-    return np.sum([0.5*snr(freqs, detector, datum, hpf, hxf, theta, phi, psi, zeroFreq=zeroFreq)**2 for detector, datum in zip(detectors, data)])
+    snrs = np.array([snr(freqs, detector, datum, hpf, hxf, theta, phi, psi, zeroFreq=zeroFreq) for detector, datum in zip(detectors, data)])
+    if verbose: ### print the SNRs
+        for snr2, detector in zip(snrs, detectors):
+            print detector.name, snr2
+        print ""
+    return np.sum(0.5*snrs**2)
 
 def likelihood( (theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=False, pole=None, **kwargs ):
     return np.exp(lnLikelihood((theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=zeroFreq, pole=pole))
