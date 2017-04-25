@@ -16,6 +16,7 @@ import simUtils as utils
 
 import matplotlib
 matplotlib.use('Agg')
+from matplotlib import cm
 from matplotlib import pyplot as plt
 plt.rcParams['text.usetex'] = True
 
@@ -26,7 +27,6 @@ from optparse import OptionParser
 #-------------------------------------------------
 
 axpos = [0.03, 0.03, 0.94, 0.94]
-figsize = (9, 5)
 
 deg2rad = np.pi/180
 rad2deg = 1./deg2rad
@@ -63,10 +63,18 @@ parser.add_option('', '--color', default='k', type='string',
 parser.add_option('', '--alpha', default=1.0, type='float',
     help='alpha used for annotation in skymap scatter')
 
-parser.add_option('', '--scatter-color', default='r', type='string',
-    help='color used for markers in skymap scatter')
 parser.add_option('', '--scatter-alpha', default=0.1, type='float',
     help='alpha used for markers in skymap scatter')
+parser.add_option('', '--color-map', default="OrRd", type='string',
+    help='used to color points in skymap scatter plot')
+
+parser.add_option('', '--min-lnprob', default=None, type='float',
+    help='the minimum lnprob plotted in skymap scatter')
+parser.add_option('', '--max-lnprob', default=None, type='float',
+    help='the maximum lnprob plotted in skymap scatter')
+
+parser.add_option('', '--scatter-markersize', default=1, type='float',
+    help='the markersize for skymap scatter plot')
 
 opts, args = parser.parse_args()
 
@@ -114,22 +122,34 @@ samples['phi'][samples['phi']>np.pi] -= 2*np.pi ### shift phi to match plotting 
 if opts.verbose:
     print( '(scatter) plot skymap on mollweide projection' )
 
-fig = plt.figure(figsize=figsize)
+fig = plt.figure()
 ax = fig.add_axes(axpos, projection='mollweide')
 
-### FIXME: may want to color points by their lnprob?
-ax.plot( 
-    samples['phi'], 
-    0.5*np.pi - samples['theta'], ### plot declination, not theta
-    linestyle='none', 
+### color points by their lnprob
+mappable = cm.ScalarMappable(
+    norm=plt.Normalize(
+        vmin=opts.min_lnprob if opts.min_lnprob!=None else np.min(samples['lnprob']),
+        vmax=opts.max_lnprob if opts.max_lnprob!=None else np.max(samples['lnprob']),
+    ),
+    cmap=plt.get_cmap(opts.color_map),
+)
+mappable.set_array(samples['lnprob'])
+
+order = samples['lnprob'].argsort() ### smallest to largest
+
+ax.scatter(
+    samples['phi'][order], 
+    0.5*np.pi - samples['theta'][order], ### plot declination, not theta
+    color=mappable.to_rgba(samples['lnprob'][order]),
+    alpha=opts.scatter_alpha,
     marker='o', 
-    markersize=2, 
-    alpha=opts.scatter_alpha, 
-    markeredgecolor=opts.scatter_color, 
-    markerfacecolor=opts.scatter_color,
+    s=opts.scatter_markersize,
 )
 
 ### decorate
+cb = plt.colorbar(mappable, orientation='horizontal', shrink=0.8, fraction=0.15)
+cb.set_label('$\ln p(\\vec{\\theta}|\mathrm{data})$')
+
 ax.grid(True, which='both')
 if (opts.phi!=None) and (opts.theta!=None):
     ax.plot(opts.phi, 0.5*np.pi - opts.theta, marker='x', markersize=10, color=opts.color, alpha=opts.alpha )
