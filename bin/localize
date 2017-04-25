@@ -15,6 +15,8 @@ import sys
 import time
 
 import numpy as np
+import healpy as hp
+
 import simUtils as utils
 
 import emcee
@@ -55,6 +57,17 @@ parser.add_option('', '--time', default=False, action='store_true')
 parser.add_option('-o', '--output-dir', default='.', type='string')
 parser.add_option('-t', '--tag', default='', type='string')
 
+### checkpointing
+
+parser.add_option('', '--setup', default=None, type='string',
+    help='a path to a pickled set-up file. If not supplied, will generate necessary \
+data on the fly from other options. If supplied, other options will be ignored.')
+
+parser.add_option('', '--resume', default=None, type='string',
+    help='a path to an output file from which we can pick up the MCMC sampling. If supplied, \
+will ignore options about how to initialize the chains. Otherwise, will initialize the chains \
+according to other options. NOTE: this will over-ride --Nwalkers')
+
 ### options about the network and assumptions we make about antenna patterns
 
 parser.add_option('-i', '--instrument', default=[], type='string',
@@ -64,6 +77,13 @@ Should be repeated if there are multiple instruments. Must be one of : %s'%(', '
 parser.add_option('', '--zeroFreq', default=False, action='store_true',
     help='use the zero frequency limit for antenna response when localizing.\
 Note: we will *always* inject the signal with the correct response, which accounts for non-zero frequencies.')
+
+parser.add_option('', '--line-of-sight', nargs=2, default=None, type='string',
+    help='sample in the line-of-sight frame defined by 2 known detectors (eg: "--line-of-sight H L").\
+If specified, all theta, phi references (including how we intepret input arguments) will be reported in this frame.')
+
+parser.add_option('', '--zeroNoise', default=False, action='store_true',
+    help='zero the noise in the detectors, so there is only the signal injected')
 
 ### parameters about the samplers
 
@@ -129,85 +149,125 @@ if not os.path.exists(opts.output_dir):
 if opts.tag:
     opts.tag = "_"+opts.tag
 
-assert len(opts.instrument), 'please supply at least one instrument\n%s'%usage
-assert np.all([known_detectors.has_key(ifo) for ifo in opts.instrument]), 'please supply only known ifos\n%s'%(', '.join(known_detectors.keys()))
-
-assert len(args)==Ndim, 'please supply exactly %d input arguments\n%s'%(Ndim, usage)
-theta, phi, psi, iota, distance, tac = [float(_) for _ in args]
-if opts.args_are_degrees:
-    deg2rad = np.pi/180
-    theta *= deg2rad
-    phi *= deg2rad
-    psi *= deg2rad
-    iota *= deg2rad
-
 opts.verbose = opts.verbose or opts.Verbose or opts.time
+
+if opts.resume and (not opts.setup):
+    raise ValueError, 'cannot resume sampling without setup.pkl!'
+
+if opts.line_of_sight:
+    assert np.all([known_detectors.has_key(ifo) for ifo in opts.line_of_sight]), 'please supply only known ifos with --line-of-sight\n%s'%(', '.join(known_detectors.keys()))
 
 #-------------------------------------------------
 
-if opts.verbose:
-    print( 'setting up arguments' )
-# technical parameters for vector length
-length = opts.srate*opts.seglen 
+if opts.setup: ### load data from pickle file
+    if opts.verbose:
+        print( 'loading setup from : '+opts.setup )
+    args, kwargs = utils.load_setup(opts.setup)
 
-deltaT = 1.0/opts.srate
-deltaF = 1.0 / (length * deltaT);
+else:
+    assert len(opts.instrument), 'please supply at least one instrument\n%s'%usage
+    assert np.all([known_detectors.has_key(ifo) for ifo in opts.instrument]), 'please supply only known ifos\n%s'%(', '.join(known_detectors.keys()))
 
-#frequencies
-isco = LAL_C_SI**3/(LAL_G_SI*(opts.m1+opts.m2)*LAL_MSUN_SI) / (np.pi * 6**(3./2))*5 ### extra factor of 5 is from Matt's advice
-f_max = min(float(opts.srate)/2.0, isco) ### up to Nyquist or isco
+    assert len(args)==Ndim, 'please supply exactly %d input arguments\n%s'%(Ndim, usage)
+    theta, phi, psi, iota, distance, tac = [float(_) for _ in args]
+    if opts.args_are_degrees:
+        deg2rad = np.pi/180
+        theta *= deg2rad
+        phi *= deg2rad
+        psi *= deg2rad
+        iota *= deg2rad
 
-## build the waveforms!
-h = lalsim.SimInspiralTaylorF2(
-    opts.phiRef,
-    deltaF,
-    opts.m1*LAL_MSUN_SI, 
-    opts.m2*LAL_MSUN_SI,
-    opts.s1z, 
-    opts.s2z,
-    opts.f_min, 
-    f_max, 
-    opts.f_ref,
-    LAL_PC_SI*1e6, ### normalize to 1 Mpc
-    lal.CreateDict(),
-)
-freqs = np.array([h.f0+i*h.deltaF for i in np.arange(h.data.length)])
-h = h.data.data ### I only care about the frequency vector
+    #--------------------
 
-### detectors
-detectors = [known_detectors[ifo] for ifo in opts.instrument]
+    if opts.verbose:
+        print( 'setting up arguments' )
+    # technical parameters for vector length
+    length = opts.srate*opts.seglen 
 
-### data
-hpf, hxf = utils.h2pol(utils.h2hAtT(freqs, h, tac), iota, distance=distance)
-data = [detector.drawNoise(freqs)+detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=False) for detector in detectors]
+    deltaT = 1.0/opts.srate
+    deltaF = 1.0 / (length * deltaT);
 
-### set up arguments
-args = (freqs, data, h, detectors)
-kwargs = {
-    'zeroFreq':opts.zeroFreq,
-    'minDistance':opts.min_distance,
-    'maxDistance':opts.max_distance,
-    'minT0':opts.min_tac,
-    'maxT0':opts.max_tac,
-}
+    #frequencies
+    isco = LAL_C_SI**3/(LAL_G_SI*(opts.m1+opts.m2)*LAL_MSUN_SI) / (np.pi * 6**(3./2))*5 ### extra factor of 5 is from Matt's advice
+    f_max = min(float(opts.srate)/2.0, isco) ### up to Nyquist or isco
 
-### FIXME: 
-###    write data and paramters out to file so we can pick up localization where we left off?
-###    this could be another option for how to start the sampler. Read in the last spot from an existing run!
+    ## build the waveforms!
+    h = lalsim.SimInspiralTaylorF2(
+        opts.phiRef,
+        deltaF,
+        opts.m1*LAL_MSUN_SI, 
+        opts.m2*LAL_MSUN_SI,
+        opts.s1z, 
+        opts.s2z,
+        opts.f_min, 
+        f_max, 
+        opts.f_ref,
+        LAL_PC_SI*1e6, ### normalize to 1 Mpc
+        lal.CreateDict(),
+    )
+    freqs = np.array([h.f0+i*h.deltaF for i in np.arange(h.data.length)])
+    h = h.data.data ### I only care about the frequency vector
+
+    ### detectors
+    detectors = [known_detectors[ifo] for ifo in opts.instrument]
+
+    ### data
+    hpf, hxf = utils.h2pol(utils.h2hAtT(freqs, h, tac), iota, distance=distance)
+    if opts.zeroNoise: ### only add the signal
+        data = [detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=False) for detector in detectors]
+
+    else: ### add signal and Gaussian noise
+        data = [detector.drawNoise(freqs)+detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=False) for detector in detectors]
+
+    ### specify the line-of-sight frame in which we should sample
+    if opts.line_of_sight:
+        ifo1, ifo2 = opts.line_of_sight
+        pole = known_detectors[ifo1].r - known_detectors[ifo2].r
+        pole = hp.vec2ang(pole/np.sum(pole*pole)**0.5) ### store this in polar coordinates
+    
+    else:
+        pole = None
+
+    ### set up arguments
+    args = (freqs, data, h, detectors)
+    kwargs = {
+        'zeroFreq':opts.zeroFreq,
+        'minDistance':opts.min_distance,
+        'maxDistance':opts.max_distance,
+        'minT0':opts.min_tac,
+        'maxT0':opts.max_tac,
+        'pole':pole,
+    }
+
+    ### write to pkl file
+    pklname = "%s/localize-setup%s.pkl"%(opts.output_dir, opts.tag)
+    if opts.verbose:
+        print( "    writing args, kwargs to : "+pklname )
+    utils.dump_setup(pklname, args, kwargs)
 
 ### set up the starting point
-if opts.sample_ball:
+if opts.resume: ### pick up where we left off
+    if opts.verbose:
+        print( 'loading initial point from : '+opts.resume )
+    p0, opts.Nwalkers = utils.resume_ensemble(opts.resume)
+    
+elif opts.sample_ball:
     if opts.verbose:
         print( 'sampling from a ball around injected value to get starting point' )
 
+    ### FIXME: 
+    ###    may want a more refined choice for std
+    ###    if we sample in the line-of-sight frame, we may want narrow distrib on theta and wide distrib on phi...
     p0 = emcee.utils.sample_ball(
         [theta, phi, psi, iota, distance, tac], 
-        [0.1, 0.1, 0.1, 0.1, 0.1*(opts.max_distance-opts.min_distance), 0.1*(opts.max_tac-opts.min_tac)], 
+        [0.1, 0.1, 0.1, 0.1, 0.01*(opts.max_distance-opts.min_distance), 0.01*(opts.max_tac-opts.min_tac)], 
         size=opts.Nwalkers,
     )
-    ### FIXME: may want a more refined choice for std, particularly if we transition to the line-of-sight frame
 
 else:
+    if opts.verbose:
+        print( 'sampling from prior to get starting points' )
+
     ### FIXME: 
     ###    insead of sampling the prior, we may want to sample the prior convolved with the detector network's sensitivity
     ###    basically, fold in a noise weighted measure of (F+^2 + Fx^2) somehow
@@ -222,10 +282,8 @@ else:
     p0[:,4] = opts.min_distance + (opts.max_distance-opts.min_distance)*p0[:,4]
     p0[:,5] = opts.min_tac + (opts.max_tac-opts.min_tac)*p0[:,5]
 
-    if opts.verbose:
-        print( 'sampling from prior to get starting points' )
-        if opts.time:
-            t0 = time.time()
+    if opts.time:
+        t0 = time.time()
 
     if opts.Verbose:
         template = '\r[%s%s] %.2f'
@@ -257,19 +315,46 @@ sampler = emcee.EnsembleSampler(
     threads=opts.threads,
 )
 
+### set up output file
+if not opts.resume: ### report parameters at the top of the file
+    filename = '%s/localize%s.txt'%(opts.output_dir, opts.tag)
+    if opts.verbose:
+        print( 'writing output to : %s'%filename )
+    file_obj = open(filename, 'w') ### overwrite whatever was there before
+
+    print >> file_obj, '# theta : %.5f'%theta
+    print >> file_obj, '# phi : %.5f'%phi
+    print >> file_obj, '# psi : %.5f'%psi
+    print >> file_obj, '# iota : %.5f'%iota
+    print >> file_obj, '# distanceMpc : %.5f'%distance
+    print >> file_obj, '# timeAtCoalescence : %9.6f'%tac
+    print >> file_obj, '# Nwalkers : %d'%opts.Nwalkers
+    print >> file_obj, '# lineOfSight : %s'%(' '.join(opts.line_of_sight) if opts.line_of_sight else None)
+    print >> file_obj, 'k lnprob       theta        phi         psi         iota    distanceMpc timeAtCoalescence'
+
+else:
+    if opts.verbose:
+        print( 'writing output to : %s'%opts.resume )
+    file_obj = open(opts.resume, 'a') ### append onto existing file
+
+report = '%d %4.9f %1.9f %1.9f %1.9f %1.9f %6.9f %9.6f' ### used to report state
+
 if opts.verbose:
     print( 'running sampler' )
     if opts.time:
         t0 = time.time()
 
-### FIXME: 
-###    we may want to actually print sampler.chain[:,-1,0] to file after each step so we don't have wait for the whole thing to finish.
-###    would require some thought on how to properly structure the header in the output file, etc.
 if opts.Verbose: ### print a progress bar while sampling
     template = '\r[%s%s] %.2f'
     sys.stdout.write(template%('', ' '*opts.status_width, 0))
     sys.stdout.flush()
-    for i, result in enumerate(sampler.sample(p0, iterations=opts.Nsteps)):
+    for i, (pos, lnpost, _) in enumerate(sampler.sample(p0, iterations=opts.Nsteps)):
+        ### report state
+        for walker in xrange(opts.Nwalkers):
+            print >> file_obj, report%tuple([walker, lnpost[walker]]+list(pos[walker]))
+        file_obj.flush() ### only flush output if we're Verbose
+
+        ### print progress
         f = (i+1.)/opts.Nsteps
         n = int((opts.status_width)*f)
         sys.stdout.write(template%('-'*n, ' '*(opts.status_width-n), f*100))
@@ -277,26 +362,14 @@ if opts.Verbose: ### print a progress bar while sampling
     sys.stdout.write("\n")
 
 else: ### just sample silently
-    sampler.run_mcmc(p0, opts.Nsteps)
+    for pos, lnpost, _ in sampler.sample(p0, iterations=opts.Nsteps):
+        ### report state
+        for walker in xrange(opts.Nwalkers):
+            print >> file_obj, report%tuple([walker, lnpost[walker]]+list(pos[walker]))
+        ### do not flush output here because we are not Verbose
 
 if opts.time:
     print( '    %.3f sec'%(time.time()-t0) )
-
-#------------------------
-### write the output into a file
-
-filename = '%s/localize%s.txt'%(opts.output_dir, opts.tag)
-if opts.verbose:
-    print( 'writing output to : %s'%filename )
-
-file_obj = open(filename, 'w')
-print >> file_obj, '# theta : %.5f'%theta
-print >> file_obj, '# phi : %.5f'%phi
-print >> file_obj, '# psi : %.5f'%psi
-print >> file_obj, '# iota : %.5f'%iota
-print >> file_obj, '# distanceMpc : %.5f'%distance
-print >> file_obj, '# timeAtCoalescence : %9.6f'%tac
-print >> file_obj, '# Nwalkers : %d'%opts.Nwalkers
 
 ### report how the sampler performed
 message = 'acceptance_fraction : %s'%(' '.join('%.5f'%_ for _ in sampler.acceptance_fraction))
@@ -312,11 +385,4 @@ if opts.verbose:
     print( message )
 print >> file_obj, '# '+message
 
-### report the samples
-print >> file_obj, 'k lnprob       theta        phi         psi         iota    distanceMpc timeAtCoalescence'
-for walker in xrange(opts.Nwalkers):
-    for iteration in xrange(opts.Nsteps):
-        lnpost = sampler.lnprobability[walker, iteration]
-        params = utils.symmetries(*sampler.chain[walker, iteration]) ### ensure parameters are within reasonable ranges when we report them
-        print >> file_obj, '%d %4.9f %1.9f %1.9f %1.9f %1.9f %6.9f %9.6f'%tuple([walker, lnpost]+list(params))
 file_obj.close()

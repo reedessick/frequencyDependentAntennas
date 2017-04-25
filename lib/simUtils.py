@@ -6,9 +6,12 @@ author = "Reed Essick"
 from lal.lal import C_SI as c
 
 import numpy as np
+import healpy as hp
 
 import freqDepAntennas as ant
 import psds
+
+import pickle
 
 #-------------------------------------------------
 
@@ -188,18 +191,56 @@ def array_symmetries( theta, phi, psi, iota, distance, t0 ):
 
     return theta, phi, psi, iota, distance, t0    
 
-def lnLikelihood( (theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=False, **kwargs ):
+def lineOfSight2ThetaPhi( theta_los, phi_los, pole ):
+    """
+    convert a direction specified in the line of sight coordinates into Earth-Fixed coordinates
+    in Earth-fixed coordinates, the line-of-sight's polar direction is specified by pole=(thetaN, phiN)
+    theta_los, phi_los are defined in the line-of-sight frame
+
+    We define the transformation to the line-of-sight frame as 
+        - a rotation about the z-axis by phiN
+        - a rotation about the y-axis by thetaN
+    this choice determines the phi_los=0 plane uniquely
+    """
+    thetaN, phiN = pole
+    cosThetaN = np.cos(thetaN)
+    sinThetaN = np.sin(thetaN)
+    cosPhiN = np.cos(phiN)
+    sinPhiN = np.sin(phiN)
+
+    cosThetaLOS = np.cos(theta_los)
+    sinThetaLOS = np.sin(theta_los)
+
+    cosPhiLOS = np.cos(phi_los)
+    sinPhiLOS = np.sin(phi_los)
+
+    x = cosPhiN*cosThetaN * sinThetaLOS*cosPhiLOS - sinPhiN * sinThetaLOS*sinPhiLOS - cosPhiN*sinThetaN * cosThetaLOS
+    y = sinPhiN*cosThetaN * sinThetaLOS*cosPhiLOS + cosPhiN * sinThetaLOS*sinPhiLOS - sinThetaN*sinPhiN * cosThetaLOS
+    z = sinThetaN * sinThetaLOS*cosPhiLOS + cosThetaN * cosThetaLOS
+
+    theta, phi = hp.vec2ang(np.array([x, y, z]))
+
+    if isinstance(theta_los, (int, float)): ### necessary because of how hp.vec2ang returns values
+        return theta[0], phi[0]
+    else:
+        return theta, phi
+
+def lnLikelihood( (theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=False, pole=None, **kwargs ):
     """
     log(likelihood) of this template against this data
     """
+    if pole!=None:
+        ### theta, phi are supplied in the line-of-sight frame. We need to rotate back into Earth-fixed coordinates
+        theta, phi = lineOfSight2ThetaPhi(theta, phi, pole)
+
     ### enforce symmetries
     theta, phi, psi, iota, distance, t0 = symmetries(theta, phi, psi, iota, distance, t0)
 
     hpf, hxf = h2pol(h2hAtT(freqs, h, t0), iota, distance=distance)
     return np.sum([0.5*snr(freqs, detector, datum, hpf, hxf, theta, phi, psi, zeroFreq=zeroFreq)**2 for detector, datum in zip(detectors, data)])
 
-def likelihood( (theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=False, **kwargs ):
-    return np.exp(lnLikelihood((theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=zeroFreq))
+def likelihood( (theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=False, pole=None, **kwargs ):
+    return np.exp(lnLikelihood((theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=zeroFreq, pole=pole))
 
 #---
 
@@ -221,24 +262,78 @@ def prior( (theta, phi, psi, iota, distance, t0), minDistance=0, maxDistance=100
 
 #---
 
-def lnPosterior( (theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=False, minDistance=0, maxDistance=1000, minT0=-1., maxT0=1., **kwargs ):
+def lnPosterior( (theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=False, minDistance=0, maxDistance=1000, minT0=-1., maxT0=1., pole=None, **kwargs ):
     """
     log(posterior) of this template and extrinsic params against this data
     NOTE: this is not strictly normalized, so it isn't exactly the posterior
     """
-    return lnLikelihood((theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=zeroFreq) + lnPrior((theta, phi, psi, iota, distance, t0), minDistance=minDistance, maxDistance=maxDistance, minT0=minT0, maxT0=maxT0)
+    return lnLikelihood((theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=zeroFreq, pole=pole) + lnPrior((theta, phi, psi, iota, distance, t0), minDistance=minDistance, maxDistance=maxDistance, minT0=minT0, maxT0=maxT0)
 
-def posterior( (theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=False, minDistance=0, maxDistance=1000, minT0=-1., maxT0=1., **kwargs ):
-    return np.exp(lnPosterior((theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=zeroFreq, minDistance=minDistance, maxDistance=maxDistance, minT0=minT0, maxT0=maxT0))
+def posterior( (theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=False, minDistance=0, maxDistance=1000, minT0=-1., maxT0=1., pole=None, **kwargs ):
+    return np.exp(lnPosterior((theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=zeroFreq, minDistance=minDistance, maxDistance=maxDistance, minT0=minT0, maxT0=maxT0, pole=pole))
 
 #---
 
-def load_ensemble( path ):
+def load_ensemble( path, header=False ):
     """
     a single place where we standardize how we load in data from ensemble.out files produced by localize
     """
-    samples = np.genfromtxt(path, skiprows=9, names=True)
+    skiprows = 8 ### the number of rows in the header
+
+    samples = np.genfromtxt(path, skiprows=skiprows, names=True)
     samples['theta'], samples['phi'], samples['psi'], samples['iota'], samples['distanceMpc'], samples['timeAtCoalescence'] = \
         array_symmetries(samples['theta'], samples['phi'], samples['psi'], samples['iota'], samples['distanceMpc'], samples['timeAtCoalescence'])
 
-    return samples
+    if header:
+        file_obj = open(path, 'r')
+        header = [file_obj.readline().strip() for _ in xrange(skiprows)]
+        return samples, header
+
+    else:
+        return samples
+
+def resume_ensemble( path ):
+    """
+    pick out the last points from the existing samples and return them as a formatted sampler
+    """
+    samples = load_ensemble(path)
+
+    N = np.arange(len(samples)) ### total length of the current array
+
+    walkers = sorted(set(samples['k'])) ### figure out how many walkers there are
+    Nwalkers = len(walkers)
+
+    p0 = np.empty((Nwalkers, 6), dtype=float) ### figure out where chains ended
+    for walker in walkers:
+        ind = N[samples['k']==walker][-1] ### take the most recent sample for this walker
+        p0[walker] = np.array([
+            samples['theta'][ind], 
+            samples['phi'][ind], 
+            samples['psi'][ind], 
+            samples['iota'][ind], 
+            samples['distanceMpc'][ind], 
+            samples['timeAtCoalescence'][ind],
+        ])
+
+    return p0, Nwalkers
+
+#---
+
+def dump_setup( path, args, kwargs):
+    """
+    write data needed for setting up a sampler to disk
+    """
+    file_obj = open(path,'w')
+    pickle.dump(args, file_obj)
+    pickle.dump(kwargs, file_obj)
+    file_obj.close()
+
+def load_setup( path ):
+    """
+    load data needed for setting up a sampler from disk
+    """
+    file_obj = open(path,'r')
+    args = pickle.load(file_obj)
+    kwargs = pickle.load(file_obj)
+    file_obj.close()
+    return args, kwargs
