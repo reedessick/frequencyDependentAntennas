@@ -96,6 +96,7 @@ if opts.phi > np.pi:
 if opts.verbose:
     print( 'reading ensemble of samples from : '+args[0] )
 samples = utils.load_ensemble( args[0] )
+samples['phi'][samples['phi']>np.pi] -= 2*np.pi ### shift phi to match plotting range
 
 # columns are :
 #   k (walker number)
