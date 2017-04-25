@@ -1,0 +1,55 @@
+#!/usr/bin/env python
+
+usage = "reorder_ensemble input.txt output.txt"
+description = "shuffle the order within an ensemble.out file so that each walker's steps are reported sequentially"
+author = "Reed Essick"
+
+#-------------------------------------------------
+
+import simUtils as utils
+
+from optparse import OptionParser
+
+#-------------------------------------------------
+
+parser = OptionParser(usage=usage, description=description)
+
+parser.add_option('-v', '--verbose', default=False, action='store_true')
+
+opts, args = parser.parse_args()
+
+assert len(args)==2, 'please supply exactly 2 input arguments\n%s'%usage
+input, output = args
+
+#-------------------------------------------------
+
+if opts.verbose:
+    print( 'loading samples from : '+input )
+samples, header = utils.load_ensemble(input, header=True)
+
+walkers = sorted(set(samples['k'])) ### get the walkers
+
+report = '%d %4.9f %1.9f %1.9f %1.9f %1.9f %6.9f %9.6f'
+
+if opts.verbose:
+    print( 'writing samples to : '+output )
+
+file_obj = open(output, 'w')
+
+for line in header:
+    print >> file_obj, line
+print >> file_obj, 'k lnprob       theta        phi         psi         iota    distanceMpc timeAtCoalescence'
+
+for walker in walkers:
+    truth = samples['k']==walker
+    for zipped in zip(
+            samples['lnprob'][truth], 
+            samples['theta'][truth], 
+            samples['phi'][truth], 
+            samples['psi'][truth], 
+            samples['iota'][truth], 
+            samples['distanceMpc'][truth], 
+            samples['timeAtCoalescence'][truth],
+        ):
+        print >> file_obj, report%tuple([walker]+list(zipped))
+file_obj.close()
