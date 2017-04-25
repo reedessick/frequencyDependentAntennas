@@ -70,7 +70,7 @@ according to other options. NOTE: this will over-ride --Nwalkers')
 
 ### options about the network and assumptions we make about antenna patterns
 
-parser.add_option('-i', '--instrument', default=[], type='string',
+parser.add_option('-i', '--instrument', default=[], type='string', action='append',
     help='Will draw random Gaussian noise for each and inject a signal. \
 Should be repeated if there are multiple instruments. Must be one of : %s'%(', '.join(known_detectors.keys())))
 
