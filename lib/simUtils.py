@@ -191,18 +191,21 @@ def array_symmetries( theta, phi, psi, iota, distance, t0 ):
 
     return theta, phi, psi, iota, distance, t0    
 
+#------------------------
+
 def lineOfSight2ThetaPhi( theta_los, phi_los, pole ):
     """
     convert a direction specified in the line of sight coordinates into Earth-Fixed coordinates
     in Earth-fixed coordinates, the line-of-sight's polar direction is specified by pole=(thetaN, phiN)
     theta_los, phi_los are defined in the line-of-sight frame
 
-    We define the transformation to the line-of-sight frame as 
-        - a rotation about the z-axis by phiN
-        - a rotation about the y-axis by thetaN
+    We define the transformation from the Earth-Fixed frame to the line-of-sight frame as 
+        - a rotation about the z-axis by -phiN (to bring pole into the x-z plane)
+        - a rotation about the y-axis by thetaN (to rotate z into N)
     this choice determines the phi_los=0 plane uniquely
     """
     thetaN, phiN = pole
+
     cosThetaN = np.cos(thetaN)
     sinThetaN = np.sin(thetaN)
     cosPhiN = np.cos(phiN)
@@ -210,31 +213,55 @@ def lineOfSight2ThetaPhi( theta_los, phi_los, pole ):
 
     cosThetaLOS = np.cos(theta_los)
     sinThetaLOS = np.sin(theta_los)
-
     cosPhiLOS = np.cos(phi_los)
     sinPhiLOS = np.sin(phi_los)
 
-    x = cosPhiN*cosThetaN * sinThetaLOS*cosPhiLOS - sinPhiN * sinThetaLOS*sinPhiLOS - cosPhiN*sinThetaN * cosThetaLOS
-    y = sinPhiN*cosThetaN * sinThetaLOS*cosPhiLOS + cosPhiN * sinThetaLOS*sinPhiLOS - sinThetaN*sinPhiN * cosThetaLOS
-    z = sinThetaN * sinThetaLOS*cosPhiLOS + cosThetaN * cosThetaLOS
+    xLOS = sinThetaLOS*cosPhiLOS
+    yLOS = sinThetaLOS*sinPhiLOS
 
-    theta, phi = hp.vec2ang(np.array([x, y, z]))
+    x = cosPhiN*cosThetaN*xLOS - sinPhiN*yLOS + cosPhiN*sinThetaN*cosThetaLOS
+    y = sinPhiN*cosThetaN*xLOS + cosPhiN*yLOS + sinPhiN*sinThetaN*cosThetaLOS
+    z = -sinThetaN*xLOS + cosThetaN*cosThetaLOS
 
-    if isinstance(theta_los, (int, float)): ### necessary because of how hp.vec2ang returns values
-        return theta[0], phi[0]
-    else:
-        return theta, phi
+    return np.arccos(z), np.arctan2(y, x)
+
+def ThetaPhi2LineOfSight( theta, phi, pole ):
+    """
+    should perform the inverse of lineOfSight2ThetaPhi
+    """
+    thetaN, phiN = pole
+
+    cosThetaN = np.cos(thetaN)
+    sinThetaN = np.sin(thetaN)
+    cosPhiN = np.cos(phiN)
+    sinPhiN = np.sin(phiN)
+
+    cosTheta = np.cos(theta)
+    sinTheta = np.sin(theta)
+    cosPhi = np.cos(phi)
+    sinPhi = np.sin(phi)
+
+    x = sinTheta*cosPhi
+    y = sinTheta*sinPhi
+
+    xLOS = cosPhiN*cosThetaN*x + sinPhiN*cosThetaN*y - sinThetaN*cosTheta
+    yLOS = -sinPhiN*x + cosPhiN*y
+    zLOS = sinThetaN*cosPhiN*x + sinThetaN*sinPhiN*y + cosThetaN*cosTheta
+
+    return np.arccos(zLOS), np.arctan2(yLOS, xLOS)
+
+#------------------------
 
 def lnLikelihood( (theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=False, pole=None, verbose=False, **kwargs ):
     """
     log(likelihood) of this template against this data
     """
+    ### enforce symmetries
+    theta, phi, psi, iota, distance, t0 = symmetries(theta, phi, psi, iota, distance, t0)
+
     if pole!=None:
         ### theta, phi are supplied in the line-of-sight frame. We need to rotate back into Earth-fixed coordinates
         theta, phi = lineOfSight2ThetaPhi(theta, phi, pole)
-
-    ### enforce symmetries
-    theta, phi, psi, iota, distance, t0 = symmetries(theta, phi, psi, iota, distance, t0)
 
     hpf, hxf = h2pol(h2hAtT(freqs, h, t0), iota, distance=distance)
     snrs = np.array([snr(freqs, detector, datum, hpf, hxf, theta, phi, psi, zeroFreq=zeroFreq) for detector, datum in zip(detectors, data)])
