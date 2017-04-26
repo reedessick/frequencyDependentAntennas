@@ -80,7 +80,8 @@ Note: we will *always* inject the signal with the correct response, which accoun
 
 parser.add_option('', '--line-of-sight', nargs=2, default=None, type='string',
     help='sample in the line-of-sight frame defined by 2 known detectors (eg: "--line-of-sight H L").\
-If specified, all theta, phi references (including how we intepret input arguments) will be reported in this frame.')
+If specified, injection args will will be interpreted in Earth-Fixed coords and posterior samples will be reported \
+in Earth-Fixed coords, but the sampler will use the line-of-sight frame.')
 
 parser.add_option('', '--zeroNoise', default=False, action='store_true',
     help='zero the noise in the detectors, so there is only the signal injected')
@@ -163,6 +164,7 @@ if opts.setup: ### load data from pickle file
     if opts.verbose:
         print( 'loading setup from : '+opts.setup )
     args, kwargs = utils.load_setup(opts.setup)
+    pole = kwargs['pole'] ### we use this outside of kwargs
 
 else:
     assert len(opts.instrument), 'please supply at least one instrument\n%s'%usage
@@ -211,14 +213,6 @@ else:
     ### detectors
     detectors = [known_detectors[ifo] for ifo in opts.instrument]
 
-    ### data
-    hpf, hxf = utils.h2pol(utils.h2hAtT(freqs, h, tac), iota, distance=distance)
-    if opts.zeroNoise: ### only add the signal
-        data = [detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=False) for detector in detectors]
-
-    else: ### add signal and Gaussian noise
-        data = [detector.drawNoise(freqs)+detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=False) for detector in detectors]
-
     ### specify the line-of-sight frame in which we should sample
     if opts.line_of_sight:
         ifo1, ifo2 = opts.line_of_sight
@@ -228,6 +222,14 @@ else:
 
     else:
         pole = None
+
+    ### data
+    hpf, hxf = utils.h2pol(utils.h2hAtT(freqs, h, tac), iota, distance=distance)
+    if opts.zeroNoise: ### only add the signal
+        data = [detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=False) for detector in detectors]
+
+    else: ### add signal and Gaussian noise
+        data = [detector.drawNoise(freqs)+detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=False) for detector in detectors]
 
     ### set up arguments
     args = (freqs, data, h, detectors)
@@ -257,12 +259,12 @@ elif opts.sample_ball:
         print( 'sampling from a ball around injected value to get starting point' )
 
     p0 = [theta, phi, psi, iota, distance, tac] ### injected location
-    if opts.line_of_sight and np.all([ifo in opts.instrument for ifo in opts.line_of_sight]): ### we're sampling both detectors
-        ### FIXME: may wnat to explicitly place walkers around the ring instead of relying on simple ball to do that...
-        std = [0.01, np.pi, 0.1, 0.1, 0.01*(opts.max_distance-opts.min_distance), 0.01*(opts.max_tac-opts.min_tac)]
-
-    else:
-        std = [0.1, 0.1, 0.1, 0.1, 0.01*(opts.max_distance-opts.min_distance), 0.01*(opts.max_tac-opts.min_tac)]
+    std = [0.1, 0.1, 0.1, 0.1, 0.01*(opts.max_distance-opts.min_distance), 0.01*(opts.max_tac-opts.min_tac)]
+    if opts.line_of_sight:
+        p0[:2] = utils.ThetaPhi2LineOfSight(theta, phi, pole=pole) ### start at LOS coords
+        if np.all([ifo in opts.instrument for ifo in opts.line_of_sight]): ### we're sampling both detectors
+            ### FIXME: may wnat to explicitly place walkers around the ring instead of relying on simple ball to do that...
+            std = [0.01, np.pi, 0.1, 0.1, 0.01*(opts.max_distance-opts.min_distance), 0.01*(opts.max_tac-opts.min_tac)]
 
     p0 = emcee.utils.sample_ball(
         p0,
@@ -357,7 +359,7 @@ if opts.Verbose: ### print a progress bar while sampling
     for i, (pos, lnpost, _) in enumerate(sampler.sample(p0, iterations=opts.Nsteps)):
         ### report state
         for walker in xrange(opts.Nwalkers):
-            print >> file_obj, report%tuple([walker, lnpost[walker]]+list(pos[walker]))
+            print >> file_obj, report%tuple([walker, lnpost[walker]]+list(utils.lineOfSight2ThetaPhi(*pos[walker,:2], pole=pole)) + list(pos[walker,2:]))
         file_obj.flush() ### only flush output if we're Verbose
 
         ### print progress
@@ -371,7 +373,8 @@ else: ### just sample silently
     for pos, lnpost, _ in sampler.sample(p0, iterations=opts.Nsteps):
         ### report state
         for walker in xrange(opts.Nwalkers):
-            print >> file_obj, report%tuple([walker, lnpost[walker]]+list(pos[walker]))
+            params = pos[walker]
+            print >> file_obj, report%tuple([walker, lnpost[walker]]+list(*utils.lineOfSight2ThetaPhi(*pos[walker,:2], pole=pole)) + list(pos[walker,2:]))
         ### do not flush output here because we are not Verbose
 
 if opts.time:
