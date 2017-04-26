@@ -193,7 +193,7 @@ def array_symmetries( theta, phi, psi, iota, distance, t0 ):
 
 #------------------------
 
-def lineOfSight2ThetaPhi( theta_los, phi_los, pole ):
+def lineOfSight2ThetaPhi( theta_los, phi_los, pole=None ):
     """
     convert a direction specified in the line of sight coordinates into Earth-Fixed coordinates
     in Earth-fixed coordinates, the line-of-sight's polar direction is specified by pole=(thetaN, phiN)
@@ -204,6 +204,9 @@ def lineOfSight2ThetaPhi( theta_los, phi_los, pole ):
         - a rotation about the y-axis by thetaN (to rotate z into N)
     this choice determines the phi_los=0 plane uniquely
     """
+    if pole==None:
+        return theta_los, phi_los
+
     thetaN, phiN = pole
 
     cosThetaN = np.cos(thetaN)
@@ -225,10 +228,13 @@ def lineOfSight2ThetaPhi( theta_los, phi_los, pole ):
 
     return np.arccos(z), np.arctan2(y, x)
 
-def ThetaPhi2LineOfSight( theta, phi, pole ):
+def ThetaPhi2LineOfSight( theta, phi, pole=None ):
     """
     should perform the inverse of lineOfSight2ThetaPhi
     """
+    if pole==None:
+        return theta, phi
+
     thetaN, phiN = pole
 
     cosThetaN = np.cos(thetaN)
