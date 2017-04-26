@@ -223,8 +223,9 @@ else:
     if opts.line_of_sight:
         ifo1, ifo2 = opts.line_of_sight
         pole = known_detectors[ifo1].r - known_detectors[ifo2].r
-        pole = hp.vec2ang(pole/np.sum(pole*pole)**0.5) ### store this in polar coordinates
-    
+        pole /= np.sum(pole**2)**0.5
+        pole = np.arccos(pole[2]), np.arctan2(pole[1], pole[0]) ### store this in polar coordinates
+
     else:
         pole = None
 
@@ -255,12 +256,17 @@ elif opts.sample_ball:
     if opts.verbose:
         print( 'sampling from a ball around injected value to get starting point' )
 
-    ### FIXME: 
-    ###    may want a more refined choice for std
-    ###    if we sample in the line-of-sight frame, we may want narrow distrib on theta and wide distrib on phi...
+    p0 = [theta, phi, psi, iota, distance, tac] ### injected location
+    if opts.line_of_sight and np.all([ifo in opts.instrument for ifo in opts.line_of_sight]): ### we're sampling both detectors
+        ### FIXME: may wnat to explicitly place walkers around the ring instead of relying on simple ball to do that...
+        std = [0.01, np.pi, 0.1, 0.1, 0.01*(opts.max_distance-opts.min_distance), 0.01*(opts.max_tac-opts.min_tac)]
+
+    else:
+        std = [0.1, 0.1, 0.1, 0.1, 0.01*(opts.max_distance-opts.min_distance), 0.01*(opts.max_tac-opts.min_tac)]
+
     p0 = emcee.utils.sample_ball(
-        [theta, phi, psi, iota, distance, tac], 
-        [0.1, 0.1, 0.1, 0.1, 0.01*(opts.max_distance-opts.min_distance), 0.01*(opts.max_tac-opts.min_tac)], 
+        p0,
+        std,
         size=opts.Nwalkers,
     )
 
