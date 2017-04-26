@@ -374,7 +374,7 @@ else: ### just sample silently
         ### report state
         for walker in xrange(opts.Nwalkers):
             params = pos[walker]
-            print >> file_obj, report%tuple([walker, lnpost[walker]]+list(*utils.lineOfSight2ThetaPhi(*pos[walker,:2], pole=pole)) + list(pos[walker,2:]))
+            print >> file_obj, report%tuple([walker, lnpost[walker]]+list(utils.lineOfSight2ThetaPhi(*pos[walker,:2], pole=pole)) + list(pos[walker,2:]))
         ### do not flush output here because we are not Verbose
 
 if opts.time:
