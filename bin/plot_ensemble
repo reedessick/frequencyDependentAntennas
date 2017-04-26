@@ -128,8 +128,8 @@ ax = fig.add_axes(axpos, projection='mollweide')
 ### color points by their lnprob
 mappable = cm.ScalarMappable(
     norm=plt.Normalize(
-        vmin=opts.min_lnprob if opts.min_lnprob!=None else np.min(samples['lnprob']),
-        vmax=opts.max_lnprob if opts.max_lnprob!=None else np.max(samples['lnprob']),
+        vmin=opts.min_lnprob if opts.min_lnprob!=None else np.min(samples['lnprob'][samples['lnprob']>-np.infty]),
+        vmax=opts.max_lnprob if opts.max_lnprob!=None else np.max(samples['lnprob'][samples['lnprob']<np.infty]),
     ),
     cmap=plt.get_cmap(opts.color_map),
 )
