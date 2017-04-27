@@ -158,12 +158,13 @@ for sample, tag, label in [
     for walker in walkers:
         f = emcee.autocorr.function(sample[truths[walker]], fast=opts.fast_corr)
 
-        try:
-            t, win = emcee.autocorr.integrated_time(sample, full_output=True, fast=opts.fast_corr)
-        except emcee.autocorr.AutocorrError:
-            if opts.verbose:
-                print( '    could not compute integrated time!' )
-            t = None
+        ### this seems to systematically fail and takes a long time, so just skip it
+#        try:
+#            t, win = emcee.autocorr.integrated_time(sample, full_output=True, fast=opts.fast_corr)
+#        except emcee.autocorr.AutocorrError:
+#            if opts.verbose:
+#                print( '    could not compute integrated time!' )
+#            t = None
 
         x = np.arange(len(f))
 
