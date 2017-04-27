@@ -193,8 +193,6 @@ for sample, tag, label in [
     fig.savefig(figname)
     plt.close(fig)
 
-raise Exception
-
 #------------------------
 
 ### plot skymap first
