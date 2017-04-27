@@ -57,6 +57,11 @@ parser.add_option('', '--timeAtCoalescence', default=None, type='float',
 
 parser.add_option('', '--args-are-degrees', default=False, action='store_true')
 
+### line-of-sight plots to make
+parser.add_option('', '--line-of-sight', nargs=2, default=[], type='string', action='append',
+    help='generate skymap scatters in this line of sight as well. \
+Also, add dT marginal to corner plot. (eg: H L)')
+
 ### plotting options
 parser.add_option('', '--color', default='k', type='string',
     help='color used for annotation in skymap scatter and truth annotations in corner')
@@ -122,9 +127,6 @@ samples['phi'][samples['phi']>np.pi] -= 2*np.pi ### shift phi to match plotting 
 if opts.verbose:
     print( '(scatter) plot skymap on mollweide projection' )
 
-fig = plt.figure()
-ax = fig.add_axes(axpos, projection='mollweide')
-
 ### color points by their lnprob
 mappable = cm.ScalarMappable(
     norm=plt.Normalize(
@@ -136,29 +138,38 @@ mappable = cm.ScalarMappable(
 mappable.set_array(samples['lnprob'])
 
 order = samples['lnprob'].argsort() ### smallest to largest
+color = mappable.to_rgba(samples['lnprob'][order])
 
-ax.scatter(
-    samples['phi'][order], 
-    0.5*np.pi - samples['theta'][order], ### plot declination, not theta
-    color=mappable.to_rgba(samples['lnprob'][order]),
-    alpha=opts.scatter_alpha,
-    marker='o', 
-    s=opts.scatter_markersize,
-)
+### iterate over line-of-sight frames
+for tag, pole in [('', None)] + [('-'+''.join(los), utils.IFOs2pole(*los)) for los in opts.line_of_sight]:
+    fig = plt.figure()
+    ax = fig.add_axes(axpos, projection='mollweide')
 
-### decorate
-cb = plt.colorbar(mappable, orientation='horizontal', shrink=0.8, fraction=0.15)
-cb.set_label('$\ln p(\\vec{\\theta}|\mathrm{data})$')
+    theta, phi = utils.ThetaPhi2LineOfSight( samples['theta'][order], samples['phi'][order], pole=pole )
 
-ax.grid(True, which='both')
-if (opts.phi!=None) and (opts.theta!=None):
-    ax.plot(opts.phi, 0.5*np.pi - opts.theta, marker='x', markersize=10, color=opts.color, alpha=opts.alpha )
+    ax.scatter(
+        phi, 
+        0.5*np.pi - theta, ### plot declination, not theta
+        color=color,
+        alpha=opts.scatter_alpha,
+        marker='o', 
+        s=opts.scatter_markersize,
+    )
 
-figname = "%s/ensemble-skymap%s.png"%(opts.output_dir, opts.tag)
-if opts.verbose:
-    print( '    saving : '+figname )
-fig.savefig(figname)
-plt.close(figname)
+    ### decorate
+    cb = plt.colorbar(mappable, orientation='horizontal', shrink=0.8, fraction=0.15)
+    cb.set_label('$\ln p(\\vec{\\theta}|\mathrm{data})$')
+
+    ax.grid(True, which='both')
+    if (opts.phi!=None) and (opts.theta!=None):
+        theta, phi = utils.ThetaPhi2LineOfSight( opts.theta, opts.phi, pole=pole )
+        ax.plot(phi, 0.5*np.pi-theta, marker='x', markersize=10, color=opts.color, alpha=opts.alpha )
+
+    figname = "%s/ensemble-skymap%s%s.png"%(opts.output_dir, tag, opts.tag)
+    if opts.verbose:
+        print( '    saving : '+figname )
+    fig.savefig(figname)
+    plt.close(figname)
 
 #------------------------
 
@@ -167,14 +178,14 @@ if opts.verbose:
     print( 'corner plot' )
 
 # set up data and labels
-data = np.array([
+data = [
     samples['theta']*rad2deg,
     samples['phi']*rad2deg,
     samples['psi']*rad2deg,
     samples['iota']*rad2deg,
     samples['distanceMpc'],
     samples['timeAtCoalescence'],
-]).transpose()
+]
 
 labels = [
     r"$\theta$ [$^\circ$]", 
@@ -193,6 +204,27 @@ truths = [
     opts.distanceMpc,
     opts.timeAtCoalescence,
 ]
+
+sinTheta = np.sin(samples['theta'])
+cosTheta = np.cos(samples['theta'])
+sinPhi = np.sin(samples['phi'])
+cosPhi = np.cos(samples['phi'])
+N = -np.array([sinTheta*cosPhi, sinTheta*sinPhi, cosTheta]) ### wave's direction of propagation
+
+for ifo1, ifo2 in opts.line_of_sight: ### add in data for line-of-sight time-delay marginals
+    det1 = utils.known_detectors[ifo1]
+    det2 = utils.known_detectors[ifo2]
+
+    dt = np.sum(np.outer(det1.r-det2.r,np.ones_like(sinTheta))*N, axis=0)*1e3 ### plot in ms
+
+    data.append( dt )
+    labels.append( '$\Delta t_{%s%s}$ [ms]'%(ifo1, ifo2) )
+    if opts.theta and opts.phi:
+        truths.append( np.sum((det1.r-det2.r)*(-np.array([np.sin(opts.theta)*np.cos(opts.phi), np.sin(opts.theta)*np.sin(opts.phi), np.cos(opts.theta)]))) )
+    else:
+        truths.append( None )
+
+data = np.array(data).transpose() ### make formatting friendly for corner.corner
 
 # delegate to generate figure
 fig = corner.corner(
@@ -216,6 +248,7 @@ plt.close(fig)
 ### autocorrelation analysis
 if opts.verbose:
     print( 'autocorrelation analysis' )
+
 raise NotImplementedError, '''\
 autocorrelation analysis
     - emcee.autocorr.integrated_time
