@@ -52,6 +52,9 @@ parser.add_option('', '--min-mag', default=3e-3, type='float')
 parser.add_option('', '--norm2zeroFreq', default=False, action='store_true',
     help='normalize antenna patterns to their zero-frequency limit')
 
+parser.add_option('', '--series-legend', default=False, action='store_true', 
+    help='add a legend to the magnitude panels of the series figures')
+
 parser.add_option('-o', '--output-dir', default='.', type='string')
 parser.add_option('-t', '--tag', default='', type='string')
 
@@ -86,12 +89,28 @@ if opts.verbose:
     print "plotting as a function of frequency"
 freqs = np.logspace(np.log10(opts.fmin), np.log10(opts.fmax), opts.Nfreq) ### the frequencies at which we evaluate antenna patterns
 
+### set up progression plots for F+, Fx separately
+
+series_Fp_fig = plt.figure()
+series_Fpmag_ax = plt.subplot(2,1,1)
+series_Fpphs_ax = plt.subplot(2,1,2)
+
+plt.subplots_adjust(hspace=0.05)
+
+series_Fx_fig = plt.figure()
+series_Fxmag_ax = plt.subplot(2,1,1,)
+series_Fxphs_ax = plt.subplot(2,1,2)
+
+plt.subplots_adjust(hspace=0.05)
+
+
+### iterate through supplied angles
 for ind, (theta, phi) in enumerate(opts.theta_phi):
     if opts.Verbose:
         print "    theta : %.3f deg"%theta
         print "    phi   : %.3f deg"%phi
 
-    title = "$\\theta=%.3f^\circ$\n$\phi=%.3f^\circ$"%(theta, phi)
+    title = "$\\theta=%.1f^\circ$  $\phi=%.1f^\circ$"%(theta, phi)
 
     Fp, Fx = ant.antenna_response([theta/rad2deg], [phi/rad2deg], [0.0], opts.ex, opts.ey, T=T, freqs=freqs)
     Fp = Fp.flatten()
@@ -141,8 +160,8 @@ for ind, (theta, phi) in enumerate(opts.theta_phi):
     mag_ax.set_xscale('log')
     mag_ax.set_xlim(xmin=opts.fmin, xmax=opts.fmax)
 
-#    phs_ax.set_ylim(ymin=-1, ymax=181)
-#    phs_ax.set_yticks([0, 30, 60, 90, 120, 150, 180])
+    ymin, ymax = phs_ax.get_ylim()
+    phs_ax.set_ylim(ymin=max(-181, ymin), ymax=min(181, ymax))
     phs_ax.set_xscale('log')
     phs_ax.set_xlim(mag_ax.get_xlim())
 
@@ -152,6 +171,57 @@ for ind, (theta, phi) in enumerate(opts.theta_phi):
     plt.subplots_adjust(hspace=0.05)
 
     figname = "%s/bode_%04d%s.png"%(opts.output_dir, ind, opts.tag)
+    if opts.verbose:
+        print "    "+figname
+    fig.savefig(figname)
+    plt.close(fig)
+
+    ### add to seires plots
+    series_Fpmag_ax.plot( freqs, np.abs(Fp), label=title )
+    series_Fpphs_ax.plot( freqs, phs(Fp)*rad2deg, label=title )
+
+    series_Fxmag_ax.plot( freqs, np.abs(Fx), label=title )
+    series_Fxphs_ax.plot( freqs, phs(Fx)*rad2deg, label=title )
+
+### decorate and save series figures
+for mag_ax, phs_ax, fig, tag, title in [
+        (series_Fpmag_ax, series_Fpphs_ax, series_Fp_fig, 'F+', '$F_+$'), 
+        (series_Fxmag_ax, series_Fxphs_ax, series_Fx_fig, 'Fx', '$F_\\times$'),
+    ]:
+
+    plt.setp(mag_ax.get_xticklabels(), visible=False)
+    mag_ax.set_title(title)
+
+    phs_ax.set_xlabel('$fL/c$')
+
+    if opts.norm2zeroFreq:
+        mag_ax.set_ylabel('normalized magnitude')
+        phs_ax.set_ylabel('normalized phase [$^\circ$]')
+
+    else:
+        mag_ax.set_ylabel('magnitude')
+        phs_ax.set_ylabel('phase [$^\circ$]')
+
+    if opts.series_legend:
+        mag_ax.legend(loc='best')
+
+    try:
+        mag_ax.set_yscale('log')
+    except ValueError as e: ### no positive values
+        pass
+    mag_ax.set_ylim(ymin=opts.min_mag, ymax=1.1)
+    mag_ax.set_xscale('log')
+    mag_ax.set_xlim(xmin=opts.fmin, xmax=opts.fmax)
+
+    ymin, ymax = phs_ax.get_ylim()
+    phs_ax.set_ylim(ymin=max(-181, ymin), ymax=min(181, ymax))
+    phs_ax.set_xscale('log')
+    phs_ax.set_xlim(mag_ax.get_xlim())
+
+    mag_ax.grid(True, which='both')
+    phs_ax.grid(True, which='both')
+
+    figname = "%s/bode-%s%s.png"%(opts.output_dir, tag, opts.tag)
     if opts.verbose:
         print "    "+figname
     fig.savefig(figname)

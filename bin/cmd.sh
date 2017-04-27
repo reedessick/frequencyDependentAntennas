@@ -27,7 +27,7 @@ bode_antennas \
     --theta-phi 0  7.5 --theta-phi 15  7.5 --theta-phi 30  7.5 --theta-phi 45  7.5 --theta-phi 60  7.5 --theta-phi 75  7.5 --theta-phi 90  7.5 \
     --theta-phi 0 15.0 --theta-phi 15 15.0 --theta-phi 30 15.0 --theta-phi 45 15.0 --theta-phi 60 15.0 --theta-phi 75 15.0 --theta-phi 90 15.0 \
     --theta-phi 0 22.5 --theta-phi 15 22.5 --theta-phi 30 22.5 --theta-phi 45 22.5 --theta-phi 60 22.5 --theta-phi 75 22.5 --theta-phi 90 22.5 \
-    --theta-phi 90 0 --theta-phi 90 45 --theta-phi 90 90 --theta-phi 90 135 --theta-phi 90 180 --theta-phi 90 225 --theta-phi 90 270 --theta-pi 90 315 \
+    --theta-phi 90 0 --theta-phi 90 45 --theta-phi 90 90 --theta-phi 90 135 --theta-phi 90 180 --theta-phi 90 225 --theta-phi 90 270 --theta-phi 90 315 \
     -o bode 
 
 bode_antennas \
@@ -40,9 +40,27 @@ bode_antennas \
     --theta-phi 0  7.5 --theta-phi 15  7.5 --theta-phi 30  7.5 --theta-phi 45  7.5 --theta-phi 60  7.5 --theta-phi 75  7.5 --theta-phi 90  7.5 \
     --theta-phi 0 15.0 --theta-phi 15 15.0 --theta-phi 30 15.0 --theta-phi 45 15.0 --theta-phi 60 15.0 --theta-phi 75 15.0 --theta-phi 90 15.0 \
     --theta-phi 0 22.5 --theta-phi 15 22.5 --theta-phi 30 22.5 --theta-phi 45 22.5 --theta-phi 60 22.5 --theta-phi 75 22.5 --theta-phi 90 22.5 \
-    --theta-phi 90 0 --theta-phi 90 45 --theta-phi 90 90 --theta-phi 90 135 --theta-phi 90 180 --theta-phi 90 225 --theta-phi 90 270 --theta-pi 90 315 \
+    --theta-phi 90 0 --theta-phi 90 45 --theta-phi 90 90 --theta-phi 90 135 --theta-phi 90 180 --theta-phi 90 225 --theta-phi 90 270 --theta-phi 90 315 \
     -o bode \
     --norm2zeroFreq -t normed 
+
+#---
+
+for phi in 0 7.5 15 22.5
+do
+    bode_antennas \
+        -V \
+        --ex 1 0 0 \
+        --ey 0 1 0 \
+        --Nfreq 1001 --fmin 0.01 \
+        --min-mag 1e-2 \
+        --theta-phi  0 $phi \
+        --theta-phi 30 $phi \
+        --theta-phi 60 $phi \
+        --theta-phi 90 $phi \
+        --series-legend \
+        -o bode -t series-${phi}
+done
 
 #---
 

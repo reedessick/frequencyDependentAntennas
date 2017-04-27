@@ -1,0 +1,116 @@
+#!/usr/bin/env python
+
+usage = "plot_network_antennas [--options] freq freq freq ..."
+description = "plot the network antenna patterns for a network of detectors. Frequencies supplied as arguments should be specified in Hz."
+author = "Reed Essick"
+
+#-------------------------------------------------
+
+import os
+
+import numpy as np
+import healpy as hp
+
+import freqDepAntennas as ant
+import simUtils as utils
+
+import matplotlib
+matplotlib.use("Agg")
+from matplotlib import pyplot as plt
+plt.rcParams['text.usetex'] = True
+
+from lalinference import plot as lalinf_plot
+
+from optparse import OptionParser
+
+#-------------------------------------------------
+
+known_detectors = utils.known_detectors
+
+axpos = [0.03, 0.03, 0.94, 0.94]
+
+#-------------------------------------------------
+
+parser = OptionParser(usage=usage, description=description)
+
+parser.add_option('-v', '--verbose', default=False, action='store_true')
+
+parser.add_option('', '--nside', default=64, type='int', 
+    help='nside used when gridding the sky')
+
+parser.add_option('-i', '--instrument', default=[], type='string', action='append',
+    help='Will draw random Gaussian noise for each and inject a signal. \
+should be repeated if there are multiple instruments. Must be one of : %s'%(', '.join(known_detectors.keys())))
+
+parser.add_option('', '--color-map', default='OrRd', type='string')
+
+parser.add_option('-o', '--output-dir', default='.', type='string')
+parser.add_option('-t', '--tag', default='', type='string')
+
+opts, args = parser.parse_args()
+
+if not os.path.exists(opts.output_dir):
+    os.makedirs(opts.output_dir)
+
+if opts.tag:
+    opts.tag = "_"+opts.tag
+
+assert len(opts.instrument), 'please supply at least one instrument\n%s'%usage
+assert np.all([known_detectors.has_key(ifo) for ifo in opts.instrument]), 'please supply only known ifos\n%s'%(', '.join(known_detectors.keys()))
+
+freqs = [float(_) for _ in args]
+
+#-------------------------------------------------
+
+### define detectors
+detectors = [known_detectors[ifo] for ifo in opts.instrument]
+
+### define pixelization
+npix = hp.nside2npix(opts.nside)
+theta, phi = hp.pix2ang(opts.nside, np.arange(npix))
+
+for ind, freq in enumerate(freqs):
+
+    if opts.verbose:
+        print( 'freq = %.3f Hz'%freq )
+
+    ### compute responses at this frequency for mollweide projections
+    rho_p = np.zeros(npix, dtype=float)
+    rho_x = np.zeros(npix, dtype=float)
+
+    for detector in detectors:
+        fp, fx = ant.antenna_response(theta, phi, 0.0, detector.ex, detector.ey, T=detector.T, freqs=freq)
+        fp = fp.flatten() ### map into a !D array for convenience
+        fx = fx.flatten() 
+
+        rho_p += np.abs(fp)**2/detector.PSD(freq)
+        rho_x += np.abs(fx)**2/detector.PSD(freq)
+
+    ### plot responses
+    if opts.verbose:
+        print( '    plotting' )
+    title = '$f=%.1f$ Hz'%(freq)
+
+    for rho, label, tag in [
+        (rho_p+rho_x, '$\sum \\frac{|F^{(d)}_+|^2+|F^{(d)}_\\times|^2}{S^{(d)}}$', 'mag'),
+        (rho_p, '$\sum \\frac{|F^{(d)}_+|^2}{S^{(d)}}$', 'F+'),
+        (rho_x, '$\sum \\frac{|F^{(d)}_\\times|^2}{S^{(d)}}$', 'Fx'),
+    ]:
+
+        fig = plt.figure()
+        ax = fig.add_axes(axpos, projection='mollweide')
+
+        ax.set_title(title)
+
+        lalinf_plot.healpix_heatmap( rho, cmap=plt.get_cmap(opts.color_map))
+
+        ax.grid(True, which='both')
+
+        cb = plt.colorbar(orientation='horizontal')
+        cb.set_label(label)
+
+        figname = "%s/network-%s_%04d%s.png"%(opts.output_dir, tag, ind, opts.tag)
+        if opts.verbose:
+            print "    "+figname
+        fig.savefig(figname)
+        plt.close(fig)
