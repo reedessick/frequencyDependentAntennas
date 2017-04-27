@@ -33,11 +33,7 @@ from optparse import OptionParser
 
 #-------------------------------------------------
 
-known_detectors = {
-    'H' : utils.LHO,
-    'L' : utils.LLO,
-    'V' : utils.Virgo,
-}
+known_detectors = utils.known_detectors
 
 Ndim = 6 # theta, phi, psi, iota, distance, tac
 

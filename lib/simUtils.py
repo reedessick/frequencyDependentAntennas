@@ -42,6 +42,11 @@ aVirgo_design = PSD(
     psds.aVirgo_design['vals'],
 )
 
+known_psds = {
+    'aLIGO' : aLIGO_design,
+    'aVirgo' : aVirgo_design,
+}
+
 #-------------------------------------------------
 
 class Detector(object):
@@ -115,6 +120,12 @@ Virgo = Detector(
     L = 3e3,
     PSD = aVirgo_design,
 )
+
+known_detectors = {
+    'H' : LHO,
+    'L' : LLO,
+    'V' : Virgo,
+}
 
 #-------------------------------------------------
 
