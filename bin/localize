@@ -211,10 +211,7 @@ else:
 
     ### specify the line-of-sight frame in which we should sample
     if opts.line_of_sight:
-        ifo1, ifo2 = opts.line_of_sight
-        pole = known_detectors[ifo1].r - known_detectors[ifo2].r
-        pole /= np.sum(pole**2)**0.5
-        pole = np.arccos(pole[2]), np.arctan2(pole[1], pole[0]) ### store this in polar coordinates
+        pole = utils.IFOs2pole(*opts.line_of_sight)
 
     else:
         pole = None

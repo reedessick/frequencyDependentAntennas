@@ -204,6 +204,15 @@ def array_symmetries( theta, phi, psi, iota, distance, t0 ):
 
 #------------------------
 
+def IFOs2pole( ifo1, ifo2 ):
+    '''
+    return the line-of-sight polar direction in Earth-fixed coordinates.
+    return theta, phi
+    '''
+    pole = known_detectors[ifo1].r - known_detectors[ifo2].r
+    pole /= np.sum(pole**2)**0.5
+    return np.arccos(pole[2]), np.arctan2(pole[1], pole[0]) ### store this in polar coordinates
+
 def lineOfSight2ThetaPhi( theta_los, phi_los, pole=None ):
     """
     convert a direction specified in the line of sight coordinates into Earth-Fixed coordinates
