@@ -220,11 +220,9 @@ for ifo1, ifo2 in opts.line_of_sight: ### add in data for line-of-sight time-del
     data.append( dt )
     labels.append( '$\Delta t_{%s%s}$ [ms]'%(ifo1, ifo2) )
     if opts.theta and opts.phi:
-        truths.append( np.sum((det1.r-det2.r)*(-np.array([np.sin(opts.theta)*np.cos(opts.phi), np.sin(opts.theta)*np.sin(opts.phi), np.cos(opts.theta)]))) )
+        truths.append( np.sum((det1.r-det2.r)*(-np.array([np.sin(opts.theta)*np.cos(opts.phi), np.sin(opts.theta)*np.sin(opts.phi), np.cos(opts.theta)])))*1e3 )
     else:
         truths.append( None )
-
-data = np.array(data).transpose() ### make formatting friendly for corner.corner
 
 # delegate to generate figure
 fig = corner.corner(
