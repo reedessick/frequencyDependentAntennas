@@ -15,6 +15,18 @@ plot_antennas \
     --nside 128 \
     -o mollweide
 
+plot_network_antennas \
+    -v \
+    -i H -i L \
+    -o network/ -t HL \
+    $(seq 0 1000 75000)
+
+plot_network_antennas \
+    -v \
+    -i H -i L -i V \
+    -o network/ -t HLV \
+    $(seq 0 1000 75000)
+
 #---
 
 bode_antennas \
