@@ -224,6 +224,8 @@ for ifo1, ifo2 in opts.line_of_sight: ### add in data for line-of-sight time-del
     else:
         truths.append( None )
 
+data = np.array(data).transpose() ### flip this to make corner happy
+
 # delegate to generate figure
 fig = corner.corner(
     data, 
@@ -247,7 +249,50 @@ plt.close(fig)
 if opts.verbose:
     print( 'autocorrelation analysis' )
 
-raise NotImplementedError, '''\
-autocorrelation analysis
-    - emcee.autocorr.integrated_time
-    - emcee.autocorr.function'''
+for x, tag, label in [
+        (samples['theta'], 'theta', '$\\theta$'),
+        (samples['phi'], 'phi', '$\phi$'),
+        (samples['psi'], 'psi', '$\psi$'),
+        (samples['iota'], 'iota', '$\iota$'),
+        (samples['distanceMpc'], 'distance', '$D$ [Mpc]$'),
+        (samples['timeAtCoalescence'], 'tac', '$t_0$ [sec]'),
+    ]:
+
+    if opts.verbose:
+        print( '    computing autocorrelation function for '+tag )
+    f = emcee.autocorr.function(x)
+
+    if opts.verbose:
+        print( '    computing integrated_time for '+tag )
+    try:
+        t, win = emcee.autocorr.integrated_time(x, full_output=True)
+    except emcee.autocorr.AutocorrError:
+        if opts.verbose:
+            print( '    could not compute integrated time!' )
+        t = None
+
+    ### plot!
+    if opts.verbose:
+        print( '    plotting' )
+    fig = plt.figure()
+    ax = fig.gca()
+
+    ax.plot( f, label=label )
+
+    if t!=None:
+        ylim = ax.get_ylim()
+        ax.plot( [t]*2, ylim, 'k--' )
+        ax.set_ylim(ylim)
+
+    ax.set_xlabel('sample number')
+    ax.set_ylabel('AutoCorrelation(%s)'%label)
+
+    ax.set_xlim(xmin=0, xmax=len(x))
+
+    ax.grid(True, which='both')
+
+    figname = '%s/ensemble-%s%s.png'%(opts.output_dir, tag, opts.tag)
+    if opts.verbose:
+        print( '    '+figname )
+    fig.savefig(figname)
+    plt.close(fig)
