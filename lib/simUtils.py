@@ -341,7 +341,7 @@ def posterior( (theta, phi, psi, iota, distance, t0), freqs, data, h, detectors,
 
 #---
 
-def load_ensemble( path, header=False ):
+def load_ensemble( path, header=False, min_sample=0, spacing=1 ):
     """
     a single place where we standardize how we load in data from ensemble.out files produced by localize
     """
@@ -351,13 +351,25 @@ def load_ensemble( path, header=False ):
     samples['theta'], samples['phi'], samples['psi'], samples['iota'], samples['distanceMpc'], samples['timeAtCoalescence'] = \
         array_symmetries(samples['theta'], samples['phi'], samples['psi'], samples['iota'], samples['distanceMpc'], samples['timeAtCoalescence'])
 
+    ### discard everything befor min_sample
+    inds = np.arange(len(samples))
+    keys = 'k lnprob theta phi psi iota distanceMpc timeAtCoalescence'.split()
+    ans = dict((key, np.array([])) for key in keys)
+    for truth in [samples['k']==walker for walker in [int(_) for _ in sorted(set(samples['k']))]]:
+        truth[np.arange(len(truth))<min_sample] = False
+        these_inds = inds[truth][::spacing]
+        for key in keys:
+            ans[key] = np.concatenate((ans[key], samples[key][these_inds]))
+
     if header:
         file_obj = open(path, 'r')
         header = [file_obj.readline().strip() for _ in xrange(skiprows)]
-        return samples, header
+#        return samples, header
+        return ans, header
 
     else:
-        return samples
+#        return samples
+        return ans
 
 def resume_ensemble( path ):
     """
@@ -365,7 +377,7 @@ def resume_ensemble( path ):
     """
     samples = load_ensemble(path)
 
-    N = np.arange(len(samples)) ### total length of the current array
+    N = np.arange(len(samples['k'])) ### total length of the current array
 
     walkers = sorted(set(samples['k'])) ### figure out how many walkers there are
     Nwalkers = len(walkers)

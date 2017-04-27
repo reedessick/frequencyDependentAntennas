@@ -40,6 +40,13 @@ parser.add_option('-v', '--verbose', default=False, action='store_true')
 parser.add_option('-o', '--output-dir', default='.', type='string')
 parser.add_option('-t', '--tag', default='', type='string')
 
+### limits on what data to plot
+parser.add_option('', '--min-sample', default=0, type='int',
+    help='discard all samples that have indecies less than --min-sample. DEFAULT=0')
+
+parser.add_option('', '--sample-spacing', default=1, type='int',
+    help='only retain 1 in every --sample-spacing points. DEFAULT=1')
+
 ### reference parameters
 
 parser.add_option('', '--theta', default=None, type='float',
@@ -81,6 +88,9 @@ parser.add_option('', '--max-lnprob', default=None, type='float',
 parser.add_option('', '--scatter-markersize', default=1, type='float',
     help='the markersize for skymap scatter plot')
 
+parser.add_option('', '--fast-corr', default=False, action='store_true',
+    help='use "fast" option when calling autocorrelation functions')
+
 opts, args = parser.parse_args()
 
 assert len(args)==1, 'please supply exactly 1 input argument\n%s'%usage
@@ -108,7 +118,7 @@ if opts.phi > np.pi:
 
 if opts.verbose:
     print( 'reading ensemble of samples from : '+args[0] )
-samples = utils.load_ensemble( args[0] )
+samples = utils.load_ensemble( args[0], min_sample=opts.min_sample, spacing=opts.sample_spacing )
 samples['phi'][samples['phi']>np.pi] -= 2*np.pi ### shift phi to match plotting range
 
 # columns are :
@@ -122,6 +132,69 @@ samples['phi'][samples['phi']>np.pi] -= 2*np.pi ### shift phi to match plotting 
 #   timeAtCoalescence
 
 #-------------------------------------------------
+
+### autocorrelation analysis
+if opts.verbose:
+    print( 'autocorrelation analysis' )
+
+walkers = [int(walker) for walker in sorted(set(samples['k']))] ### genfromtxt returns a float
+truths = [samples['k']==walker for walker in walkers]
+
+for sample, tag, label in [
+        (samples['theta'], 'theta', '$\\theta$'),
+        (samples['phi'], 'phi', '$\phi$'),
+        (samples['psi'], 'psi', '$\psi$'),
+        (samples['iota'], 'iota', '$\iota$'),
+        (samples['distanceMpc'], 'distance', '$D$'),
+        (samples['timeAtCoalescence'], 'tac', '$t_0$'),
+    ]:
+
+    ### plot!
+    if opts.verbose:
+        print( '    plotting' )
+    fig = plt.figure()
+    ax = fig.gca()
+
+    for walker in walkers:
+        f = emcee.autocorr.function(sample[truths[walker]], fast=opts.fast_corr)
+
+        try:
+            t, win = emcee.autocorr.integrated_time(sample, full_output=True, fast=opts.fast_corr)
+        except emcee.autocorr.AutocorrError:
+            if opts.verbose:
+                print( '    could not compute integrated time!' )
+            t = None
+
+        x = np.arange(len(f))
+
+        if len(f)>1000: ### purely to keep matplotlib from breaking
+            spacing = len(f)/1000
+            f = f[::spacing]
+            x = x[::spacing]
+
+        color = ax.plot( x, f, label='walker : %d'%walker )[0].get_color()
+
+#        if t!=None:
+#            ylim = ax.get_ylim()
+#            ax.plot( [t]*2, ylim, linestyle='--', color=color )
+#            ax.set_ylim(ylim)
+
+    ax.set_xlabel('sample number')
+    ax.set_ylabel('AutoCorrelation(%s)'%label)
+
+    ax.set_xlim(xmin=0, xmax=x[-1])
+
+    ax.grid(True, which='both')
+
+    figname = '%s/ensemble-%s%s.png'%(opts.output_dir, tag, opts.tag)
+    if opts.verbose:
+        print( '    '+figname )
+    fig.savefig(figname)
+    plt.close(fig)
+
+raise Exception
+
+#------------------------
 
 ### plot skymap first
 if opts.verbose:
@@ -242,57 +315,3 @@ if opts.verbose:
     print( '    saving : '+figname )
 fig.savefig(figname)
 plt.close(fig)
-
-#------------------------
-
-### autocorrelation analysis
-if opts.verbose:
-    print( 'autocorrelation analysis' )
-
-for x, tag, label in [
-        (samples['theta'], 'theta', '$\\theta$'),
-        (samples['phi'], 'phi', '$\phi$'),
-        (samples['psi'], 'psi', '$\psi$'),
-        (samples['iota'], 'iota', '$\iota$'),
-        (samples['distanceMpc'], 'distance', '$D$ [Mpc]$'),
-        (samples['timeAtCoalescence'], 'tac', '$t_0$ [sec]'),
-    ]:
-
-    if opts.verbose:
-        print( '    computing autocorrelation function for '+tag )
-    f = emcee.autocorr.function(x)
-
-    if opts.verbose:
-        print( '    computing integrated_time for '+tag )
-    try:
-        t, win = emcee.autocorr.integrated_time(x, full_output=True)
-    except emcee.autocorr.AutocorrError:
-        if opts.verbose:
-            print( '    could not compute integrated time!' )
-        t = None
-
-    ### plot!
-    if opts.verbose:
-        print( '    plotting' )
-    fig = plt.figure()
-    ax = fig.gca()
-
-    ax.plot( f, label=label )
-
-    if t!=None:
-        ylim = ax.get_ylim()
-        ax.plot( [t]*2, ylim, 'k--' )
-        ax.set_ylim(ylim)
-
-    ax.set_xlabel('sample number')
-    ax.set_ylabel('AutoCorrelation(%s)'%label)
-
-    ax.set_xlim(xmin=0, xmax=len(x))
-
-    ax.grid(True, which='both')
-
-    figname = '%s/ensemble-%s%s.png'%(opts.output_dir, tag, opts.tag)
-    if opts.verbose:
-        print( '    '+figname )
-    fig.savefig(figname)
-    plt.close(fig)
