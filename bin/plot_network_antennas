@@ -92,9 +92,9 @@ for ind, freq in enumerate(freqs):
     title = '$f=%.1f$ Hz'%(freq)
 
     for rho, label, tag in [
-        (rho_p+rho_x, '$\sum \\frac{|F^{(d)}_+|^2+|F^{(d)}_\\times|^2}{S^{(d)}}$', 'mag'),
-        (rho_p, '$\sum \\frac{|F^{(d)}_+|^2}{S^{(d)}}$', 'F+'),
-        (rho_x, '$\sum \\frac{|F^{(d)}_\\times|^2}{S^{(d)}}$', 'Fx'),
+        (rho_p+rho_x, '$\sum\limits_d \\frac{|F^{(d)}_+|^2+|F^{(d)}_\\times|^2}{S^{(d)}}$', 'mag'),
+        (rho_p, '$\sum\limits_d \\frac{|F^{(d)}_+|^2}{S^{(d)}}$', 'F+'),
+        (rho_x, '$\sum\limits_d \\frac{|F^{(d)}_\\times|^2}{S^{(d)}}$', 'Fx'),
     ]:
 
         fig = plt.figure()
