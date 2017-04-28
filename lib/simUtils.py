@@ -104,6 +104,16 @@ LLO = Detector(
     L = 4e3,
     PSD = aLIGO_design,
 )
+
+LLO_long = Detector(
+    name = "L",
+    ex = np.array((-0.9546, -0.1416, -0.2622)),
+    ey = np.array((+0.2977, -0.4879, -0.8205)),
+    r = np.array((-0.074276, -5.496284, +3.224257))*1e6/c,
+    L = 4e4,
+    PSD = aLIGO_design,
+)
+
 LHO = Detector(
     name = "H",
     ex = np.array((-0.2239, +0.7998, +0.5569)),
@@ -112,6 +122,16 @@ LHO = Detector(
     L = 4e3,
     PSD = aLIGO_design,
 )
+
+LHO_long = Detector(
+    name = "H",
+    ex = np.array((-0.2239, +0.7998, +0.5569)),
+    ey = np.array((-0.9140, +0.0261, -0.4049)),
+    r = np.array((-2.161415, -3.834695, +4.600350))*1e6/c,
+    L = 4e4,
+    PSD = aLIGO_design,
+)
+
 Virgo = Detector(
     name = "V",
     ex = np.array((-0.7005, +0.2085, +0.6826)),
@@ -123,7 +143,9 @@ Virgo = Detector(
 
 known_detectors = {
     'H' : LHO,
+    'Hlong' : LHO_long,
     'L' : LLO,
+    'Llong' : LLO_long,
     'V' : Virgo,
 }
 
