@@ -333,6 +333,8 @@ if not opts.resume: ### report parameters at the top of the file
     print >> file_obj, '# lineOfSight : %s'%(' '.join(opts.line_of_sight) if opts.line_of_sight else None)
     print >> file_obj, 'k lnprob       theta        phi         psi         iota    distanceMpc timeAtCoalescence'
 
+    file_obj.flush()
+
 else:
     if opts.verbose:
         print( 'writing output to : %s'%opts.resume )
