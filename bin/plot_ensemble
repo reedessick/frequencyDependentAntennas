@@ -45,7 +45,7 @@ from optparse import OptionParser
 
 #-------------------------------------------------
 
-axpos = [0.05, 0.03, 0.94, 0.94]
+axpos = [0.07, 0.05, 0.92, 0.90]
 
 deg2rad = np.pi/180
 rad2deg = 1./deg2rad
@@ -257,7 +257,7 @@ if opts.skymap:
         )
 
         ### decorate
-        cb = plt.colorbar(mappable, orientation='horizontal', shrink=0.8, fraction=0.15)
+        cb = plt.colorbar(mappable, orientation='horizontal', shrink=0.8, pad=0.05)
         cb.set_label('$\ln p(\\vec{\\theta}|\mathrm{data})$')
 
         ax.grid(True, which='both')

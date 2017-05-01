@@ -43,7 +43,7 @@ from optparse import OptionParser
 
 #-------------------------------------------------
 
-axpos = [0.10, 0.15, 0.85, 0.80]
+axpos = [0.07, 0.05, 0.92, 0.90]
 
 rad2deg = 180/np.pi
 
@@ -143,7 +143,7 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
     if opts.Verbose:
         print '  %d / %d'%(ind+1, opts.Nfreq)
 
-    title = "$fL/c = %.3f$"%(freqs[ind])
+    title = "$f/f_\mathrm{fsr} = %.3f$"%(2*freqs[ind])
 
     #--- total magnitude
     fig = plt.figure()
@@ -187,7 +187,7 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     ax.grid(True, which='both')
 
-    cb = plt.colorbar(orientation='horizontal', shrink=0.8)
+    cb = plt.colorbar(orientation='horizontal', shrink=0.8, pad=0.05)
     cb.set_label('$|F_+|^2$')
 #    cb.set_clim(vmin=0, vmax=1)
 
@@ -213,7 +213,7 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     ax.grid(True, which='both')
 
-    cb = plt.colorbar(orientation='horizontal', shrink=0.8)
+    cb = plt.colorbar(orientation='horizontal', shrink=0.8, pad=0.05)
     cb.set_label('phase $F_+$ [$^\circ$]')
     cb.set_clim(vmin=-180, vmax=180)
 
@@ -239,7 +239,7 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     ax.grid(True, which='both')
 
-    cb = plt.colorbar(orientation='horizontal', shrink=0.8)
+    cb = plt.colorbar(orientation='horizontal', shrink=0.8, pad=0.05)
     cb.set_label('$\mathcal{R}\{F_+\}$')
 
     figname = "%s/realF+_%04d%s.png"%(opts.output_dir, ind, opts.tag)
@@ -264,7 +264,7 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     ax.grid(True, which='both')
 
-    cb = plt.colorbar(orientation='horizontal', shrink=0.8)
+    cb = plt.colorbar(orientation='horizontal', shrink=0.8, pad=0.05)
     cb.set_label('$\mathcal{I}\{F_+\}$')
 
     figname = "%s/imagF+_%04d%s.png"%(opts.output_dir, ind, opts.tag)
@@ -289,7 +289,7 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     ax.grid(True, which='both')
 
-    cb = plt.colorbar(orientation='horizontal')
+    cb = plt.colorbar(orientation='horizontal', shrink=0.8, pad=0.05)
     cb.set_label('$|F_\\times|^2$')
 #    cb.set_clim(vmin=0, vmax=1)
 
@@ -315,7 +315,7 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     ax.grid(True, which='both')
 
-    cb = plt.colorbar(orientation='horizontal')
+    cb = plt.colorbar(orientation='horizontal', shrink=0.8, pad=0.05)
     cb.set_label('phase $F_\\times$ [$^\circ$]')
     cb.set_clim(vmin=-180, vmax=180)
 
@@ -341,7 +341,7 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     ax.grid(True, which='both')
 
-    cb = plt.colorbar(orientation='horizontal')
+    cb = plt.colorbar(orientation='horizontal', shrink=0.8, pad=0.05)
     cb.set_label(' $\mathcal{R}\{F_\\times\}$')
 
     figname = "%s/realFx_%04d%s.png"%(opts.output_dir, ind, opts.tag)
@@ -366,7 +366,7 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     ax.grid(True, which='both')
 
-    cb = plt.colorbar(orientation='horizontal')
+    cb = plt.colorbar(orientation='horizontal', shrink=0.8, pad=0.05)
     cb.set_label('$\mathcal{I}\{F_\\times\}$')
 
     figname = "%s/imagFx_%04d%s.png"%(opts.output_dir, ind, opts.tag)

@@ -25,16 +25,16 @@ plt.rcParams.update({
 #    "axes.formatter.limits": (-3, 4),
     "axes.labelsize": 20,
     "axes.titlesize": 22,
-    "figure.subplot.bottom": 0.13,
-    "figure.subplot.left": 0.20,
-    "figure.subplot.right": 0.85,
-    "figure.subplot.top": 0.95,
+    "figure.subplot.bottom": 0.10,
+    "figure.subplot.left": 0.10,
+    "figure.subplot.right": 0.95,
+    "figure.subplot.top": 0.92,
     "grid.color": 'gray',
 #    "image.aspect": 'auto',
 #    "image.interpolation": 'nearest',
 #    "image.origin": 'lower',
-    "xtick.labelsize": 20,
-    "ytick.labelsize": 20,
+    "xtick.labelsize": 15,
+    "ytick.labelsize": 15,
 })
 
 from lalinference import plot as lalinf_plot
@@ -74,6 +74,9 @@ parser.add_option('', '--norm2zeroFreq', default=False, action='store_true',
 parser.add_option('', '--series-legend', default=False, action='store_true', 
     help='add a legend to the magnitude panels of the series figures')
 
+parser.add_option('', '--annotation', nargs=3, default=[], type='string', action='append',
+    help='the frequency and text for an annotation (eg: "1000 1kHz red")')
+
 parser.add_option('-o', '--output-dir', default='.', type='string')
 parser.add_option('-t', '--tag', default='', type='string')
 
@@ -95,18 +98,20 @@ while len(opts.ey)!=3:
     opts.ey = [float(_) for _ in raw_input('--ey=').strip().split()]
 opts.ey = np.array(opts.ey)
 
+opts.annotation = [(float(f), s, color) for f, s, color in opts.annotation]
+
 #-------------------------------------------------
 
 ### "T" sets some scale for the frequencies but is otherwise uninteresting
 ### without loss of generality, we set it to 1
-T = 1.
+T = 1.0 
 
 #------------------------
 
 ### now, we only work with the coordIndep formulation
 if opts.verbose:
     print "plotting as a function of frequency"
-freqs = np.logspace(np.log10(opts.fmin), np.log10(opts.fmax), opts.Nfreq) ### the frequencies at which we evaluate antenna patterns
+freqs = np.logspace(np.log10(opts.fmin/2), np.log10(opts.fmax/2), opts.Nfreq) ### the frequencies at which we evaluate antenna patterns
 
 ### set up progression plots for F+, Fx separately
 
@@ -152,17 +157,17 @@ for ind, (theta, phi) in enumerate(opts.theta_phi):
     mag_ax = plt.subplot(2,1,1)
     phs_ax = plt.subplot(2,1,2)
 
-    mag_ax.plot( freqs, FpFx, color='g', label='$|F_+|^2+|F_\\times|^2$')
-    mag_ax.plot( freqs, np.abs(Fp), color='b', linestyle='dashed', label='$|F_+|^2$' )
-    mag_ax.plot( freqs, np.abs(Fx), color='r', linestyle='dashed', label='$|F_\\times|^2$' )
+    mag_ax.plot( 2*freqs, FpFx, color='g', label='$|F_+|^2+|F_\\times|^2$')
+    mag_ax.plot( 2*freqs, np.abs(Fp), color='b', linestyle='dashed', label='$|F_+|^2$' )
+    mag_ax.plot( 2*freqs, np.abs(Fx), color='r', linestyle='dashed', label='$|F_\\times|^2$' )
 
     plt.setp(mag_ax.get_xticklabels(), visible=False)
     mag_ax.set_title(title)
 
-    phs_ax.plot( freqs, phs(Fp)*rad2deg, color='b', label='$F_+$' )
-    phs_ax.plot( freqs, phs(Fx)*rad2deg, color='r', label='$F_\\times$' )
+    phs_ax.plot( 2*freqs, phs(Fp)*rad2deg, color='b', label='$F_+$' )
+    phs_ax.plot( 2*freqs, phs(Fx)*rad2deg, color='r', label='$F_\\times$' )
 
-    phs_ax.set_xlabel('$fL/c$')
+    phs_ax.set_xlabel('$f/f_\mathrm{fsr}$')
 
     if opts.norm2zeroFreq:
         mag_ax.set_ylabel('normalized magnitude')
@@ -189,6 +194,12 @@ for ind, (theta, phi) in enumerate(opts.theta_phi):
 
     plt.subplots_adjust(hspace=0.05)
 
+    for f, s, color in opts.annotation:
+        for ax in [mag_ax, phs_ax]:
+            ylim = ax.get_ylim()
+            ax.plot([f]*2, ylim, 'k-', alpha=0.5, color=color)
+        ax.text(0.95*f, ylim[0]*0.9+ylim[1]*0.1, s, ha='right', va='bottom', fontsize=14, color=color)
+
     figname = "%s/bode_%04d%s.png"%(opts.output_dir, ind, opts.tag)
     if opts.verbose:
         print "    "+figname
@@ -196,11 +207,11 @@ for ind, (theta, phi) in enumerate(opts.theta_phi):
     plt.close(fig)
 
     ### add to seires plots
-    series_Fpmag_ax.plot( freqs, np.abs(Fp), label=title )
-    series_Fpphs_ax.plot( freqs, phs(Fp)*rad2deg, label=title )
+    series_Fpmag_ax.plot( 2*freqs, np.abs(Fp), label=title )
+    series_Fpphs_ax.plot( 2*freqs, phs(Fp)*rad2deg, label=title )
 
-    series_Fxmag_ax.plot( freqs, np.abs(Fx), label=title )
-    series_Fxphs_ax.plot( freqs, phs(Fx)*rad2deg, label=title )
+    series_Fxmag_ax.plot( 2*freqs, np.abs(Fx), label=title )
+    series_Fxphs_ax.plot( 2*freqs, phs(Fx)*rad2deg, label=title )
 
 ### decorate and save series figures
 for mag_ax, phs_ax, fig, tag, title in [
@@ -239,6 +250,12 @@ for mag_ax, phs_ax, fig, tag, title in [
 
     mag_ax.grid(True, which='both')
     phs_ax.grid(True, which='both')
+
+    for f, s, color in opts.annotation:
+        for ax in [mag_ax, phs_ax]:
+            ylim = ax.get_ylim()
+            ax.plot([f]*2, ylim, 'k-', alpha=0.5, color=color)
+        ax.text(0.95*f, ylim[0]*0.9+ylim[1]*0.1, s, ha='right', va='bottom', fontsize=14, color=color)
 
     figname = "%s/bode-%s%s.png"%(opts.output_dir, tag, opts.tag)
     if opts.verbose:
