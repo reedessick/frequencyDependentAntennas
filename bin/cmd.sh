@@ -64,14 +64,34 @@ do
         -V \
         --ex 1 0 0 \
         --ey 0 1 0 \
-        --Nfreq 1001 --fmin 0.01 \
+        --Nfreq 1001 \
+        --fmin 0.01 --fmax 4 \
         --min-mag 1e-2 \
         --theta-phi  0 $phi \
         --theta-phi 30 $phi \
         --theta-phi 60 $phi \
         --theta-phi 90 $phi \
         --series-legend \
+        --annotation 0.0526275 aLIGO grey \
+        --annotation 0.5262751 CE grey \
         -o bode -t series-${phi}
+
+    bode_antennas \
+        -V \
+        --ex 1 0 0 \
+        --ey 0 1 0 \
+        --Nfreq 1001 \
+        --fmin 0.01 --fmax 4 \
+        --min-mag 1e-2 \
+        --theta-phi  0 $phi \
+        --theta-phi 30 $phi \
+        --theta-phi 60 $phi \
+        --theta-phi 90 $phi \
+        --series-legend \
+        --annotation 0.0526275 aLIGO grey \
+        --annotation 0.5262751 CE grey \
+        --norm2zeroFreq \
+        -o bode -t series-${phi}-normalized
 done
 
 #---
