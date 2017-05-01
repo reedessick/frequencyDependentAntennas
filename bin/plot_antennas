@@ -16,7 +16,26 @@ import healpy as hp
 import matplotlib
 matplotlib.use("Agg")
 from matplotlib import pyplot as plt
-plt.rcParams['text.usetex'] = True
+plt.rcParams.update({
+    'text.usetex':True,
+    'font.family': 'serif',
+#    'font.serif': ['Computer Modern'],
+#    "axes.grid": True,
+#    "axes.axisbelow": False,
+#    "axes.formatter.limits": (-3, 4),
+    "axes.labelsize": 20,
+    "axes.titlesize": 22,
+    "figure.subplot.bottom": 0.13,
+    "figure.subplot.left": 0.20,
+    "figure.subplot.right": 0.85,
+    "figure.subplot.top": 0.95,
+    "grid.color": 'gray',
+#    "image.aspect": 'auto',
+#    "image.interpolation": 'nearest',
+#    "image.origin": 'lower',
+    "xtick.labelsize": 15,
+    "ytick.labelsize": 15,
+})
 
 from lalinference import plot as lalinf_plot
 
@@ -24,7 +43,7 @@ from optparse import OptionParser
 
 #-------------------------------------------------
 
-axpos = [0.03, 0.03, 0.94, 0.94]
+axpos = [0.10, 0.15, 0.85, 0.80]
 
 rad2deg = 180/np.pi
 
@@ -49,6 +68,8 @@ parser.add_option('', '--Nfreq', default=10, type='int',
     help='the number of frequency samples to use when generating plots')
 
 parser.add_option('', '--color-map', default='OrRd', type='string')
+parser.add_option('', '--annotation-color', default='k', type='string',
+    help='the color of the annotations that mark the detector arms')
 
 parser.add_option('-o', '--output-dir', default='.', type='string')
 parser.add_option('-t', '--tag', default='', type='string')
@@ -66,10 +87,12 @@ opts.verbose = opts.verbose or opts.Verbose
 while len(opts.ex)!=3:
     opts.ex = [float(_) for _ in raw_input('--ex=').strip().split()]
 opts.ex = np.array(opts.ex)
+exTheta, exPhi = np.arccos(opts.ex[2]), np.arctan2(opts.ex[1], opts.ex[0])
 
 while len(opts.ey)!=3:
     opts.ey = [float(_) for _ in raw_input('--ey=').strip().split()]
 opts.ey = np.array(opts.ey)
+eyTheta, eyPhi = np.arccos(opts.ey[2]), np.arctan2(opts.ey[1], opts.ey[0])
 
 #-------------------------------------------------
 
@@ -130,9 +153,15 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     lalinf_plot.healpix_heatmap( np.abs(fp)**2+np.abs(fx)**2, cmap=plt.get_cmap(opts.color_map) )
 
+    for theta, phi, text in [(exTheta, exPhi, '$\ e_x$'), (eyTheta, eyPhi, '$\ e_y$')]:
+        dec = 0.5*np.pi-theta
+        ax.plot(phi, dec, marker='o', markeredgecolor=opts.annotation_color, markerfacecolor='none', markersize=10, linewidth=2)
+        ax.plot(phi, dec, marker='.', markeredgecolor=opts.annotation_color, markerfacecolor=opts.annotation_color, markersize=4)
+        ax.text(phi+np.pi/36, dec, text, ha='left', va='top', fontsize=14, color=opts.annotation_color)
+
     ax.grid(True, which='both')
 
-    cb = plt.colorbar(orientation='horizontal', shrink=0.8)
+    cb = plt.colorbar(orientation='horizontal', shrink=0.8, pad=0.05)
     cb.set_label('$|F_+|^2+|F_\\times|^2$')
 #    cb.set_clim(vmin=0, vmax=1)
 
@@ -149,6 +178,12 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
     ax.set_title(title)
 
     lalinf_plot.healpix_heatmap( np.abs(fp)**2, cmap=plt.get_cmap(opts.color_map) )
+
+    for theta, phi, text in [(exTheta, exPhi, '$\ e_x$'), (eyTheta, eyPhi, '$\ e_y$')]:
+        dec = 0.5*np.pi-theta
+        ax.plot(phi, dec, marker='o', markeredgecolor=opts.annotation_color, markerfacecolor='none', markersize=10, linewidth=2)
+        ax.plot(phi, dec, marker='.', markeredgecolor=opts.annotation_color, markerfacecolor=opts.annotation_color, markersize=4)
+        ax.text(phi+np.pi/36, dec, text, ha='left', va='top', fontsize=14, color=opts.annotation_color)
 
     ax.grid(True, which='both')
 
@@ -170,6 +205,12 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     lalinf_plot.healpix_heatmap( phs(fp)*rad2deg, cmap=plt.get_cmap(opts.color_map) )
 
+    for theta, phi, text in [(exTheta, exPhi, '$\ e_x$'), (eyTheta, eyPhi, '$\ e_y$')]:
+        dec = 0.5*np.pi-theta
+        ax.plot(phi, dec, marker='o', markeredgecolor=opts.annotation_color, markerfacecolor='none', markersize=10, linewidth=2)
+        ax.plot(phi, dec, marker='.', markeredgecolor=opts.annotation_color, markerfacecolor=opts.annotation_color, markersize=4)
+        ax.text(phi+np.pi/36, dec, text, ha='left', va='top', fontsize=14, color=opts.annotation_color)
+
     ax.grid(True, which='both')
 
     cb = plt.colorbar(orientation='horizontal', shrink=0.8)
@@ -190,6 +231,12 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     lalinf_plot.healpix_heatmap( fp.real, cmap=plt.get_cmap(opts.color_map) )
 
+    for theta, phi, text in [(exTheta, exPhi, '$\ e_x$'), (eyTheta, eyPhi, '$\ e_y$')]:
+        dec = 0.5*np.pi-theta
+        ax.plot(phi, dec, marker='o', markeredgecolor=opts.annotation_color, markerfacecolor='none', markersize=10, linewidth=2)
+        ax.plot(phi, dec, marker='.', markeredgecolor=opts.annotation_color, markerfacecolor=opts.annotation_color, markersize=4)
+        ax.text(phi+np.pi/36, dec, text, ha='left', va='top', fontsize=14, color=opts.annotation_color)
+
     ax.grid(True, which='both')
 
     cb = plt.colorbar(orientation='horizontal', shrink=0.8)
@@ -209,6 +256,12 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     lalinf_plot.healpix_heatmap( fp.imag, cmap=plt.get_cmap(opts.color_map) )
 
+    for theta, phi, text in [(exTheta, exPhi, '$\ e_x$'), (eyTheta, eyPhi, '$\ e_y$')]:
+        dec = 0.5*np.pi-theta
+        ax.plot(phi, dec, marker='o', markeredgecolor=opts.annotation_color, markerfacecolor='none', markersize=10, linewidth=2)
+        ax.plot(phi, dec, marker='.', markeredgecolor=opts.annotation_color, markerfacecolor=opts.annotation_color, markersize=4)
+        ax.text(phi+np.pi/36, dec, text, ha='left', va='top', fontsize=14, color=opts.annotation_color)
+
     ax.grid(True, which='both')
 
     cb = plt.colorbar(orientation='horizontal', shrink=0.8)
@@ -227,6 +280,12 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
     ax.set_title(title)
 
     lalinf_plot.healpix_heatmap( np.abs(fx)**2, cmap=plt.get_cmap(opts.color_map) )
+
+    for theta, phi, text in [(exTheta, exPhi, '$\ e_x$'), (eyTheta, eyPhi, '$\ e_y$')]:
+        dec = 0.5*np.pi-theta
+        ax.plot(phi, dec, marker='o', markeredgecolor=opts.annotation_color, markerfacecolor='none', markersize=10, linewidth=2)
+        ax.plot(phi, dec, marker='.', markeredgecolor=opts.annotation_color, markerfacecolor=opts.annotation_color, markersize=4)
+        ax.text(phi+np.pi/36, dec, text, ha='left', va='top', fontsize=14, color=opts.annotation_color)
 
     ax.grid(True, which='both')
 
@@ -248,6 +307,12 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     lalinf_plot.healpix_heatmap( phs(fx)*rad2deg, cmap=plt.get_cmap(opts.color_map) )
 
+    for theta, phi, text in [(exTheta, exPhi, '$\ e_x$'), (eyTheta, eyPhi, '$\ e_y$')]:
+        dec = 0.5*np.pi-theta
+        ax.plot(phi, dec, marker='o', markeredgecolor=opts.annotation_color, markerfacecolor='none', markersize=10, linewidth=2)
+        ax.plot(phi, dec, marker='.', markeredgecolor=opts.annotation_color, markerfacecolor=opts.annotation_color, markersize=4)
+        ax.text(phi+np.pi/36, dec, text, ha='left', va='top', fontsize=14, color=opts.annotation_color)
+
     ax.grid(True, which='both')
 
     cb = plt.colorbar(orientation='horizontal')
@@ -268,6 +333,12 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     lalinf_plot.healpix_heatmap( fx.real, cmap=plt.get_cmap(opts.color_map) )
 
+    for theta, phi, text in [(exTheta, exPhi, '$\ e_x$'), (eyTheta, eyPhi, '$\ e_y$')]:
+        dec = 0.5*np.pi-theta
+        ax.plot(phi, dec, marker='o', markeredgecolor=opts.annotation_color, markerfacecolor='none', markersize=10, linewidth=2)
+        ax.plot(phi, dec, marker='.', markeredgecolor=opts.annotation_color, markerfacecolor=opts.annotation_color, markersize=4)
+        ax.text(phi+np.pi/36, dec, text, ha='left', va='top', fontsize=14, color=opts.annotation_color)
+
     ax.grid(True, which='both')
 
     cb = plt.colorbar(orientation='horizontal')
@@ -286,6 +357,12 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
     ax.set_title(title)
 
     lalinf_plot.healpix_heatmap( fx.imag, cmap=plt.get_cmap(opts.color_map) )
+
+    for theta, phi, text in [(exTheta, exPhi, '$\ e_x$'), (eyTheta, eyPhi, '$\ e_y$')]:
+        dec = 0.5*np.pi-theta
+        ax.plot(phi, dec, marker='o', markeredgecolor=opts.annotation_color, markerfacecolor='none', markersize=10, linewidth=2)
+        ax.plot(phi, dec, marker='.', markeredgecolor=opts.annotation_color, markerfacecolor=opts.annotation_color, markersize=4)
+        ax.text(phi+np.pi/36, dec, text, ha='left', va='top', fontsize=14, color=opts.annotation_color)
 
     ax.grid(True, which='both')
 

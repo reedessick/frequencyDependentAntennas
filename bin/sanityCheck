@@ -15,7 +15,27 @@ import freqDepAntennas as ant
 import matplotlib
 matplotlib.use("Agg")
 from matplotlib import pyplot as plt
-plt.rcParams['text.usetex'] = True
+plt.rcParams.update({
+    'text.usetex':True,
+    'font.family': 'serif',
+#    'font.serif': ['Computer Modern'],
+#    "axes.grid": True,
+#    "axes.axisbelow": False,
+#    "axes.formatter.limits": (-3, 4),
+    "axes.labelsize": 20,
+    "axes.titlesize": 22,
+    "figure.subplot.bottom": 0.13,
+    "figure.subplot.left": 0.20,
+    "figure.subplot.right": 0.85,
+    "figure.subplot.top": 0.95,
+    "grid.color": 'gray',
+#    "image.aspect": 'auto',
+#    "image.interpolation": 'nearest',
+#    "image.origin": 'lower',
+    "xtick.labelsize": 20,
+    "ytick.labelsize": 20,
+})
+
 
 from lalinference import plot as lalinf_plot
 
@@ -94,7 +114,7 @@ phs_ax.set_xlim(mag_ax.get_xlim())
 
 phs_ax.set_ylim(ymin=-181, ymax=181)
 
-mag_ax.legend(loc='best')
+mag_ax.legend(loc='best', ncol=2)
 
 figname = "%s/sanityCheck_D%s.png"%(opts.output_dir, opts.tag)
 if opts.verbose:

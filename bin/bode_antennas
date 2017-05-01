@@ -16,7 +16,26 @@ import healpy as hp
 import matplotlib
 matplotlib.use("Agg")
 from matplotlib import pyplot as plt
-plt.rcParams['text.usetex'] = True
+plt.rcParams.update({
+    'text.usetex':True,
+    'font.family': 'serif',
+#    'font.serif': ['Computer Modern'],
+#    "axes.grid": True,
+#    "axes.axisbelow": False,
+#    "axes.formatter.limits": (-3, 4),
+    "axes.labelsize": 20,
+    "axes.titlesize": 22,
+    "figure.subplot.bottom": 0.13,
+    "figure.subplot.left": 0.20,
+    "figure.subplot.right": 0.85,
+    "figure.subplot.top": 0.95,
+    "grid.color": 'gray',
+#    "image.aspect": 'auto',
+#    "image.interpolation": 'nearest',
+#    "image.origin": 'lower',
+    "xtick.labelsize": 20,
+    "ytick.labelsize": 20,
+})
 
 from lalinference import plot as lalinf_plot
 

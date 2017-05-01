@@ -18,7 +18,26 @@ import matplotlib
 matplotlib.use('Agg')
 from matplotlib import cm
 from matplotlib import pyplot as plt
-plt.rcParams['text.usetex'] = True
+plt.rcParams.update({
+    'text.usetex':True,
+    'font.family': 'serif',
+#    'font.serif': ['Computer Modern'],
+#    "axes.grid": True,
+#    "axes.axisbelow": False,
+#    "axes.formatter.limits": (-3, 4),
+    "axes.labelsize": 20,
+    "axes.titlesize": 22,
+    "figure.subplot.bottom": 0.13,
+    "figure.subplot.left": 0.20,
+    "figure.subplot.right": 0.85,
+    "figure.subplot.top": 0.95,
+    "grid.color": 'gray',
+#    "image.aspect": 'auto',
+#    "image.interpolation": 'nearest',
+#    "image.origin": 'lower',
+    "xtick.labelsize": 20,
+    "ytick.labelsize": 20,
+})
 
 import corner
 
@@ -26,7 +45,7 @@ from optparse import OptionParser
 
 #-------------------------------------------------
 
-axpos = [0.03, 0.03, 0.94, 0.94]
+axpos = [0.05, 0.03, 0.94, 0.94]
 
 deg2rad = np.pi/180
 rad2deg = 1./deg2rad
@@ -91,6 +110,13 @@ parser.add_option('', '--scatter-markersize', default=1, type='float',
 parser.add_option('', '--fast-corr', default=False, action='store_true',
     help='use "fast" option when calling autocorrelation functions')
 
+parser.add_option('', '--autocorr', default=False, action='store_true',
+    help='only perform autocorrelation analysis if supplied')
+parser.add_option('', '--skymap', default=False, action='store_true',
+    help='only plot skymaps if supplied')
+parser.add_option('', '--corner', default=False, action='store_true',
+    help='only plot corner plots if supplied')
+
 opts, args = parser.parse_args()
 
 assert len(args)==1, 'please supply exactly 1 input argument\n%s'%usage
@@ -134,183 +160,186 @@ samples['phi'][samples['phi']>np.pi] -= 2*np.pi ### shift phi to match plotting 
 #-------------------------------------------------
 
 ### autocorrelation analysis
-if opts.verbose:
-    print( 'autocorrelation analysis' )
-
-walkers = [int(walker) for walker in sorted(set(samples['k']))] ### genfromtxt returns a float
-truths = [samples['k']==walker for walker in walkers]
-
-for sample, tag, label in [
-        (samples['theta'], 'theta', '$\\theta$'),
-        (samples['phi'], 'phi', '$\phi$'),
-        (samples['psi'], 'psi', '$\psi$'),
-        (samples['iota'], 'iota', '$\iota$'),
-        (samples['distanceMpc'], 'distance', '$D$'),
-        (samples['timeAtCoalescence'], 'tac', '$t_0$'),
-    ]:
-
-    ### plot!
+if opts.autocorr:
     if opts.verbose:
-        print( '    plotting' )
-    fig = plt.figure()
-    ax = fig.gca()
+        print( 'autocorrelation analysis' )
 
-    for walker in walkers:
-        f = emcee.autocorr.function(sample[truths[walker]], fast=opts.fast_corr)
+    walkers = [int(walker) for walker in sorted(set(samples['k']))] ### genfromtxt returns a float
+    truths = [samples['k']==walker for walker in walkers]
 
-        ### this seems to systematically fail and takes a long time, so just skip it
-#        try:
-#            t, win = emcee.autocorr.integrated_time(sample, full_output=True, fast=opts.fast_corr)
-#        except emcee.autocorr.AutocorrError:
-#            if opts.verbose:
-#                print( '    could not compute integrated time!' )
-#            t = None
+    for sample, tag, label in [
+            (samples['theta'], 'theta', '$\\theta$'),
+            (samples['phi'], 'phi', '$\phi$'),
+            (samples['psi'], 'psi', '$\psi$'),
+            (samples['iota'], 'iota', '$\iota$'),
+            (samples['distanceMpc'], 'distance', '$D$'),
+            (samples['timeAtCoalescence'], 'tac', '$t_0$'),
+        ]:
 
-        x = np.arange(len(f))
+        ### plot!
+        if opts.verbose:
+            print( '    plotting' )
+        fig = plt.figure()
+        ax = fig.gca()
 
-        if len(f)>1000: ### purely to keep matplotlib from breaking
-            spacing = len(f)/1000
-            f = f[::spacing]
-            x = x[::spacing]
+        for walker in walkers:
+            f = emcee.autocorr.function(sample[truths[walker]], fast=opts.fast_corr)
 
-        color = ax.plot( x, f, label='walker : %d'%walker )[0].get_color()
+            ### this seems to systematically fail and takes a long time, so just skip it
+#            try:
+#                t, win = emcee.autocorr.integrated_time(sample, full_output=True, fast=opts.fast_corr)
+#            except emcee.autocorr.AutocorrError:
+#                if opts.verbose:
+#                    print( '    could not compute integrated time!' )
+#                t = None
 
-#        if t!=None:
-#            ylim = ax.get_ylim()
-#            ax.plot( [t]*2, ylim, linestyle='--', color=color )
-#            ax.set_ylim(ylim)
+            x = np.arange(len(f))
 
-    ax.set_xlabel('sample number')
-    ax.set_ylabel('AutoCorrelation(%s)'%label)
+            if len(f)>1000: ### purely to keep matplotlib from breaking
+                spacing = len(f)/1000
+                f = f[::spacing]
+                x = x[::spacing]
 
-    ax.set_xlim(xmin=0, xmax=x[-1])
+            color = ax.plot( x, f, label='walker : %d'%walker )[0].get_color()
 
-    ax.grid(True, which='both')
+#            if t!=None:
+#                ylim = ax.get_ylim()
+#                ax.plot( [t]*2, ylim, linestyle='--', color=color )
+#                ax.set_ylim(ylim)
 
-    figname = '%s/ensemble-%s%s.png'%(opts.output_dir, tag, opts.tag)
-    if opts.verbose:
-        print( '    '+figname )
-    fig.savefig(figname)
-    plt.close(fig)
+        ax.set_xlabel('sample number')
+        ax.set_ylabel('AutoCorrelation(%s)'%label)
+
+        ax.set_xlim(xmin=0, xmax=x[-1])
+    
+        ax.grid(True, which='both')
+    
+        figname = '%s/ensemble-%s%s.png'%(opts.output_dir, tag, opts.tag)
+        if opts.verbose:
+            print( '    '+figname )
+        fig.savefig(figname)
+        plt.close(fig)
 
 #------------------------
 
-### plot skymap first
-if opts.verbose:
-    print( '(scatter) plot skymap on mollweide projection' )
+if opts.skymap:
+    ### plot skymap first
+    if opts.verbose:
+        print( '(scatter) plot skymap on mollweide projection' )
 
-### color points by their lnprob
-mappable = cm.ScalarMappable(
-    norm=plt.Normalize(
-        vmin=opts.min_lnprob if opts.min_lnprob!=None else np.min(samples['lnprob'][samples['lnprob']>-np.infty]),
-        vmax=opts.max_lnprob if opts.max_lnprob!=None else np.max(samples['lnprob'][samples['lnprob']<np.infty]),
-    ),
-    cmap=plt.get_cmap(opts.color_map),
-)
-mappable.set_array(samples['lnprob'])
+    ### color points by their lnprob
+    mappable = cm.ScalarMappable(
+        norm=plt.Normalize(
+            vmin=opts.min_lnprob if opts.min_lnprob!=None else np.min(samples['lnprob'][samples['lnprob']>-np.infty]),
+            vmax=opts.max_lnprob if opts.max_lnprob!=None else np.max(samples['lnprob'][samples['lnprob']<np.infty]),
+        ),
+        cmap=plt.get_cmap(opts.color_map),
+    )
+    mappable.set_array(samples['lnprob'])
 
-order = samples['lnprob'].argsort() ### smallest to largest
-color = mappable.to_rgba(samples['lnprob'][order])
+    order = samples['lnprob'].argsort() ### smallest to largest
+    color = mappable.to_rgba(samples['lnprob'][order])
 
-### iterate over line-of-sight frames
-for tag, pole in [('', None)] + [('-'+''.join(los), utils.IFOs2pole(*los)) for los in opts.line_of_sight]:
-    fig = plt.figure()
-    ax = fig.add_axes(axpos, projection='mollweide')
+    ### iterate over line-of-sight frames
+    for tag, pole in [('', None)] + [('-'+''.join(los), utils.IFOs2pole(*los)) for los in opts.line_of_sight]:
+        fig = plt.figure()
+        ax = fig.add_axes(axpos, projection='mollweide')
 
-    theta, phi = utils.ThetaPhi2LineOfSight( samples['theta'][order], samples['phi'][order], pole=pole )
+        theta, phi = utils.ThetaPhi2LineOfSight( samples['theta'][order], samples['phi'][order], pole=pole )
 
-    ax.scatter(
-        phi, 
-        0.5*np.pi - theta, ### plot declination, not theta
-        color=color,
-        alpha=opts.scatter_alpha,
-        marker='o', 
-        s=opts.scatter_markersize,
+        ax.scatter(
+            phi, 
+            0.5*np.pi - theta, ### plot declination, not theta
+            color=color,
+            alpha=opts.scatter_alpha,
+            marker='o', 
+            s=opts.scatter_markersize,
+        )
+
+        ### decorate
+        cb = plt.colorbar(mappable, orientation='horizontal', shrink=0.8, fraction=0.15)
+        cb.set_label('$\ln p(\\vec{\\theta}|\mathrm{data})$')
+
+        ax.grid(True, which='both')
+        if (opts.phi!=None) and (opts.theta!=None):
+            theta, phi = utils.ThetaPhi2LineOfSight( opts.theta, opts.phi, pole=pole )
+            ax.plot(phi, 0.5*np.pi-theta, marker='x', markersize=10, color=opts.color, alpha=opts.alpha )
+
+        figname = "%s/ensemble-skymap%s%s.png"%(opts.output_dir, tag, opts.tag)
+        if opts.verbose:
+            print( '    saving : '+figname )
+        fig.savefig(figname)
+        plt.close(figname)
+
+#------------------------
+
+if opts.corner:
+    ### corner plot of all extrinsic parameters
+    if opts.verbose:
+        print( 'corner plot' )
+
+    # set up data and labels
+    data = [
+        samples['theta']*rad2deg,
+        samples['phi']*rad2deg,
+        samples['psi']*rad2deg,
+        samples['iota']*rad2deg,
+        samples['distanceMpc'],
+        samples['timeAtCoalescence'],
+    ]
+
+    labels = [
+        r"$\theta$ [$^\circ$]", 
+        r"$\phi$ [$^\circ$]", 
+        r"$\psi$ [$^\circ$]", 
+        r"$\iota$ [$^\circ$]", 
+        '$D$ [Mpc]', 
+        '$t_0$ [sec]',
+    ]
+
+    truths = [
+        opts.theta*rad2deg if opts.theta!=None else None,
+        opts.phi*rad2deg if opts.phi!=None else None,
+        opts.psi*rad2deg if opts.psi!=None else None,
+        opts.iota*rad2deg if opts.iota!=None else None,
+        opts.distanceMpc,
+        opts.timeAtCoalescence,
+    ]
+
+    sinTheta = np.sin(samples['theta'])
+    cosTheta = np.cos(samples['theta'])
+    sinPhi = np.sin(samples['phi'])
+    cosPhi = np.cos(samples['phi'])
+    N = -np.array([sinTheta*cosPhi, sinTheta*sinPhi, cosTheta]) ### wave's direction of propagation
+
+    for ifo1, ifo2 in opts.line_of_sight: ### add in data for line-of-sight time-delay marginals
+        det1 = utils.known_detectors[ifo1]
+        det2 = utils.known_detectors[ifo2]
+
+        dt = np.sum(np.outer(det1.r-det2.r,np.ones_like(sinTheta))*N, axis=0)*1e3 ### plot in ms
+
+        data.append( dt )
+        labels.append( '$\Delta t_{%s%s}$ [ms]'%(ifo1, ifo2) )
+        if opts.theta and opts.phi:
+            truths.append( np.sum((det1.r-det2.r)*(-np.array([np.sin(opts.theta)*np.cos(opts.phi), np.sin(opts.theta)*np.sin(opts.phi), np.cos(opts.theta)])))*1e3 )
+        else:
+            truths.append( None )
+
+    data = np.array(data).transpose() ### flip this to make corner happy
+
+    # delegate to generate figure
+    fig = corner.corner(
+        data, 
+        labels=labels,
+        truths=truths,
+        truth_color=opts.color,
+        quantiles=[0.10, 0.50, 0.90],
+        show_titles=True, 
+        title_kwargs={"fontsize": 12},
     )
 
-    ### decorate
-    cb = plt.colorbar(mappable, orientation='horizontal', shrink=0.8, fraction=0.15)
-    cb.set_label('$\ln p(\\vec{\\theta}|\mathrm{data})$')
-
-    ax.grid(True, which='both')
-    if (opts.phi!=None) and (opts.theta!=None):
-        theta, phi = utils.ThetaPhi2LineOfSight( opts.theta, opts.phi, pole=pole )
-        ax.plot(phi, 0.5*np.pi-theta, marker='x', markersize=10, color=opts.color, alpha=opts.alpha )
-
-    figname = "%s/ensemble-skymap%s%s.png"%(opts.output_dir, tag, opts.tag)
+    figname = "%s/ensemble-corner%s.png"%(opts.output_dir, opts.tag)
     if opts.verbose:
         print( '    saving : '+figname )
     fig.savefig(figname)
-    plt.close(figname)
-
-#------------------------
-
-### corner plot of all extrinsic parameters
-if opts.verbose:
-    print( 'corner plot' )
-
-# set up data and labels
-data = [
-    samples['theta']*rad2deg,
-    samples['phi']*rad2deg,
-    samples['psi']*rad2deg,
-    samples['iota']*rad2deg,
-    samples['distanceMpc'],
-    samples['timeAtCoalescence'],
-]
-
-labels = [
-    r"$\theta$ [$^\circ$]", 
-    r"$\phi$ [$^\circ$]", 
-    r"$\psi$ [$^\circ$]", 
-    r"$\iota$ [$^\circ$]", 
-    '$D$ [Mpc]', 
-    '$t_0$ [sec]',
-]
-
-truths = [
-    opts.theta*rad2deg if opts.theta!=None else None,
-    opts.phi*rad2deg if opts.phi!=None else None,
-    opts.psi*rad2deg if opts.psi!=None else None,
-    opts.iota*rad2deg if opts.iota!=None else None,
-    opts.distanceMpc,
-    opts.timeAtCoalescence,
-]
-
-sinTheta = np.sin(samples['theta'])
-cosTheta = np.cos(samples['theta'])
-sinPhi = np.sin(samples['phi'])
-cosPhi = np.cos(samples['phi'])
-N = -np.array([sinTheta*cosPhi, sinTheta*sinPhi, cosTheta]) ### wave's direction of propagation
-
-for ifo1, ifo2 in opts.line_of_sight: ### add in data for line-of-sight time-delay marginals
-    det1 = utils.known_detectors[ifo1]
-    det2 = utils.known_detectors[ifo2]
-
-    dt = np.sum(np.outer(det1.r-det2.r,np.ones_like(sinTheta))*N, axis=0)*1e3 ### plot in ms
-
-    data.append( dt )
-    labels.append( '$\Delta t_{%s%s}$ [ms]'%(ifo1, ifo2) )
-    if opts.theta and opts.phi:
-        truths.append( np.sum((det1.r-det2.r)*(-np.array([np.sin(opts.theta)*np.cos(opts.phi), np.sin(opts.theta)*np.sin(opts.phi), np.cos(opts.theta)])))*1e3 )
-    else:
-        truths.append( None )
-
-data = np.array(data).transpose() ### flip this to make corner happy
-
-# delegate to generate figure
-fig = corner.corner(
-    data, 
-    labels=labels,
-    truths=truths,
-    truth_color=opts.color,
-    quantiles=[0.10, 0.50, 0.90],
-    show_titles=True, 
-    title_kwargs={"fontsize": 12},
-)
-
-figname = "%s/ensemble-corner%s.png"%(opts.output_dir, opts.tag)
-if opts.verbose:
-    print( '    saving : '+figname )
-fig.savefig(figname)
-plt.close(fig)
+    plt.close(fig)

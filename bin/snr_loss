@@ -25,7 +25,26 @@ import lalsimulation as lalsim
 import matplotlib
 matplotlib.use("Agg")
 from matplotlib import pyplot as plt
-plt.rcParams['text.usetex'] = True
+plt.rcParams.update({
+    'text.usetex':True,
+    'font.family': 'serif',
+#    'font.serif': ['Computer Modern'],
+#    "axes.grid": True,
+#    "axes.axisbelow": False,
+#    "axes.formatter.limits": (-3, 4),
+    "axes.labelsize": 20,
+    "axes.titlesize": 22,
+    "figure.subplot.bottom": 0.13,
+    "figure.subplot.left": 0.20,
+    "figure.subplot.right": 0.85,
+    "figure.subplot.top": 0.95,
+    "grid.color": 'gray',
+#    "image.aspect": 'auto',
+#    "image.interpolation": 'nearest',
+#    "image.origin": 'lower',
+    "xtick.labelsize": 20,
+    "ytick.labelsize": 20,
+})
 
 from lalinference import plot as lalinf_plot
 
@@ -36,8 +55,7 @@ from optparse import OptionParser
 deg2rad = np.pi/180
 rad2deg = 1./deg2rad
 
-axpos = [0.03, 0.03, 0.94, 0.94]
-figsize = (9, 5)
+axpos = [0.05, 0.03, 0.94, 0.94]
 
 #-------------------------------------------------
 
@@ -77,6 +95,8 @@ parser.add_option('', '--theta-phi-psi-iota', nargs=4, default=[], action='appen
 parser.add_option('', '--theta-phi-psi-iota-ymin', default=1e-4, type='float')
 
 parser.add_option('', '--color-map', default='OrRd', type='string')
+parser.add_option('', '--annotation-color', default='k', type='string',
+    help='the color of the annotations that mark the detector arms')
 
 parser.add_option('-o', '--output-dir', default='.', type='string')
 parser.add_option('-t', '--tag', default='', type='string')
@@ -105,6 +125,9 @@ else:
     raise ValueError, '--PSD=%s not understood'%opts.PSD
 
 detector = utils.Detector('fake', np.array(opts.ex), np.array(opts.ey), np.zeros((3,)), opts.L, PSD)
+
+exTheta, exPhi = np.arccos(opts.ex[2]), np.arctan2(opts.ex[1], opts.ex[0])
+eyTheta, eyPhi = np.arccos(opts.ey[2]), np.arctan2(opts.ey[1], opts.ey[0])
 
 #------------------------
 
@@ -239,12 +262,18 @@ if opts.heatmap:
         ('max with $F(f)$ - max with $F(0)$',   'diff', 'mollweide-diff_max',  good_max-bad_max),
         ('mean with $F(f)$ - mean with $F(0)$', 'diff', 'mollweide-diff_mean', good_mean-bad_mean),
     ]:
-        fig = plt.figure(figsize=figsize)
+        fig = plt.figure()
         ax = fig.add_axes(axpos, projection='mollweide')
 
         ax.set_title(title)
 
         lalinf_plot.healpix_heatmap( x, cmap=plt.get_cmap(opts.color_map) )
+
+        for theta, phi, text in [(exTheta, exPhi, '$\ e_x$'), (eyTheta, eyPhi, '$\ e_y$')]:
+            dec = 0.5*np.pi-theta
+            ax.plot(phi, dec, marker='o', markeredgecolor=opts.annotation_color, markerfacecolor='none', markersize=10, linewidth=2)
+            ax.plot(phi, dec, marker='.', markeredgecolor=opts.annotation_color, markerfacecolor=opts.annotation_color, markersize=4)
+            ax.text(phi+np.pi/36, dec, text, ha='left', va='top', fontsize=14, color=opts.annotation_color)
 
         ax.grid(True, which='both')
 
