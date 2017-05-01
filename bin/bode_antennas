@@ -222,7 +222,7 @@ for mag_ax, phs_ax, fig, tag, title in [
     plt.setp(mag_ax.get_xticklabels(), visible=False)
     mag_ax.set_title(title)
 
-    phs_ax.set_xlabel('$fL/c$')
+    phs_ax.set_xlabel('$f/f_\mathrm{fsr}$')
 
     if opts.norm2zeroFreq:
         mag_ax.set_ylabel('normalized magnitude')
