@@ -1,0 +1,266 @@
+#!/usr/bin/env python
+
+usage = "localize-dagwriter [--options] theta phi psi iota distance timeAtCoalescence"
+description = """\
+a quick sampler over extrinsic parameters to study the effects of frequency dependent antenna patterns on localization. 
+Angles specified as arguments should be in radians, unless --args-are-degrees is provided. 
+Distance should be in Mpc.
+Performs grid-based computation instead of a stochastic sampling"""
+author = "Reed Essick"
+
+#-------------------------------------------------
+
+import os
+import sys
+
+import time
+
+import numpy as np
+import healpy as hp
+
+import simUtils as utils
+
+from lal import lal
+from lal.lal import MSUN_SI as LAL_MSUN_SI
+from lal.lal import PC_SI as LAL_PC_SI
+from lal.lal import C_SI as LAL_C_SI
+from lal.lal import G_SI as LAL_G_SI
+
+import lalsimulation as lalsim
+
+import subprocess as sp
+
+from optparse import OptionParser
+
+#-------------------------------------------------
+
+known_detectors = utils.known_detectors
+
+Ndim = 6 # theta, phi, psi, iota, distance, tac
+
+#-------------------------------------------------
+
+parser = OptionParser(usage=usage, description=description)
+
+### output options
+
+parser.add_option('-v', '--verbose', default=False, action='store_true')
+parser.add_option('-V', '--Verbose', default=False, action='store_true',
+    help='print progress bar during sampling')
+parser.add_option('', '--status-width', default=100, type='int',
+    help='the width of the status bar printed if --Verbose is supplied. Default=100')
+parser.add_option('', '--time', default=False, action='store_true')
+
+parser.add_option('-o', '--output-dir', default='.', type='string')
+parser.add_option('-t', '--tag', default='', type='string')
+
+### condor management
+parser.add_option('', '--submit', default=False, action='store_true')
+parser.add_option('', '--accounting-group', default=None)
+parser.add_option('', '--accounting-group-user', default=None)
+
+### checkpointing
+
+parser.add_option('', '--setup', default=None, type='string',
+    help='a path to a pickled set-up file. If not supplied, will generate necessary \
+data on the fly from other options. If supplied, other options will be ignored.')
+
+### options about the network and assumptions we make about antenna patterns
+
+parser.add_option('-i', '--instrument', default=[], type='string', action='append',
+    help='Will draw random Gaussian noise for each and inject a signal. \
+Should be repeated if there are multiple instruments. Must be one of : %s'%(', '.join(known_detectors.keys())))
+
+parser.add_option('', '--zeroFreq', default=False, action='store_true',
+    help='use the zero frequency limit for antenna response when localizing.\
+Note: we will *always* inject the signal with the correct response, which accounts for non-zero frequencies.')
+
+parser.add_option('', '--line-of-sight', nargs=2, default=None, type='string',
+    help='sample in the line-of-sight frame defined by 2 known detectors (eg: "--line-of-sight H L").\
+If specified, injection args will will be interpreted in Earth-Fixed coords and posterior samples will be reported \
+in Earth-Fixed coords, but the sampler will use the line-of-sight frame.')
+
+parser.add_option('', '--zeroNoise', default=False, action='store_true',
+    help='zero the noise in the detectors, so there is only the signal injected')
+
+### parameters about the samplers
+
+parser.add_option('', '--min-distance', default=1, type='float',
+    help='in Mpc. DEFAULT=1')
+parser.add_option('', '--max-distance', default=1000, type='float',
+    help='in Mpc. DEFAULT=1000')
+
+parser.add_option('', '--min-tac', default=-1.0, type='float',
+    help='in seconds. DEFAULT=-1.0')
+parser.add_option('', '--max-tac', default=+1.0, type='float',
+    help='in seconds. DEFAULT=+1.0')
+
+# gridding
+parser.add_option('', '--N-theta', default=100, type='int')
+parser.add_option('', '--N-phi', default=100, type='int')
+parser.add_option('', '--N-psi', default=100, type='int')
+parser.add_option('', '--N-iota', default=100, type='int')
+parser.add_option('', '--N-distance', default=100, type='int')
+parser.add_option('', '--N-tac', default=100, type='int')
+
+### parameters about the injected signal
+
+parser.add_option('', '--m1', default=1.4, type='float',
+    help='in Msun. DEFAULT=1.4')
+parser.add_option('', '--m2', default=1.4, type='float',
+    help="in Msun. DEFAULT=1.4")
+
+parser.add_option('', '--s1z', default=0.0, type='float',
+    help='DEFAULT=0')
+parser.add_option('', '--s2z', default=0.0, type='float',
+    help='DEFAULT=0')
+
+parser.add_option('', '--phiRef', default=1.5*np.pi, type='float',
+    help='in rad. DEFAULT=3*pi/2')
+
+parser.add_option('', '--args-are-degrees', default=False, action='store_true',
+    help='interpret angles specified as arguments in degrees instead of radians')
+
+### signal processing params
+
+parser.add_option('', '--f-min', default=10., type='float',
+    help='in Hz. DEFAULT=10')
+parser.add_option('', '--f-ref', default=40., type='float',
+    help='in Hz. DEFAULT=40')
+
+parser.add_option('', '--srate', default=4096., type='float',
+    help='in Hz. DEFAULT=4096')
+parser.add_option('', '--seglen', default=64., type='float',
+    help='in sec. DEFAULT=64')
+
+opts, args = parser.parse_args()
+
+if not os.path.exists(opts.output_dir):
+    os.makedirs(opts.output_dir)
+
+if opts.tag:
+    opts.tag = "_"+opts.tag
+
+opts.verbose = opts.verbose or opts.Verbose or opts.time
+
+if opts.resume and (not opts.setup):
+    raise ValueError, 'cannot resume sampling without setup.pkl!'
+
+if opts.line_of_sight:
+    assert np.all([known_detectors.has_key(ifo) for ifo in opts.line_of_sight]), 'please supply only known ifos with --line-of-sight\n%s'%(', '.join(known_detectors.keys()))
+
+else:
+    raise ValueError, 'please supply line-of-sight so we can intelligently grid the space'
+
+if not opts.accounting_group:
+    opts.accounting_group = raw_input('--accounting-group=')
+
+if not opts.accounting_group_user:
+    opts.accounting_group_user = raw_input('--accounting-group-user=')
+
+#-------------------------------------------------
+
+if opts.setup: ### load data from pickle file
+    if opts.verbose:
+        print( 'loading setup from : '+opts.setup )
+    args, kwargs = utils.load_setup(opts.setup)
+    pole = kwargs['pole'] ### we use this outside of kwargs
+
+else:
+    assert len(opts.instrument), 'please supply at least one instrument\n%s'%usage
+    assert np.all([known_detectors.has_key(ifo) for ifo in opts.instrument]), 'please supply only known ifos\n%s'%(', '.join(known_detectors.keys()))
+
+    assert len(args)==Ndim, 'please supply exactly %d input arguments\n%s'%(Ndim, usage)
+    theta, phi, psi, iota, distance, tac = [float(_) for _ in args]
+    if opts.args_are_degrees:
+        deg2rad = np.pi/180
+        theta *= deg2rad
+        phi *= deg2rad
+        psi *= deg2rad
+        iota *= deg2rad
+
+    #--------------------
+
+    if opts.verbose:
+        print( 'setting up arguments' )
+    # technical parameters for vector length
+    length = opts.srate*opts.seglen 
+
+    deltaT = 1.0/opts.srate
+    deltaF = 1.0 / (length * deltaT);
+
+    #frequencies
+    isco = LAL_C_SI**3/(LAL_G_SI*(opts.m1+opts.m2)*LAL_MSUN_SI) / (np.pi * 6**(3./2))*5 ### extra factor of 5 is from Matt's advice
+    f_max = min(float(opts.srate)/2.0, isco) ### up to Nyquist or isco
+
+    ## build the waveforms!
+    h = lalsim.SimInspiralTaylorF2(
+        opts.phiRef,
+        deltaF,
+        opts.m1*LAL_MSUN_SI, 
+        opts.m2*LAL_MSUN_SI,
+        opts.s1z, 
+        opts.s2z,
+        opts.f_min, 
+        f_max, 
+        opts.f_ref,
+        LAL_PC_SI*1e6, ### normalize to 1 Mpc
+        lal.CreateDict(),
+    )
+    freqs = np.array([h.f0+i*h.deltaF for i in np.arange(h.data.length)])
+    h = h.data.data ### I only care about the frequency vector
+
+    ### detectors
+    detectors = [known_detectors[ifo] for ifo in opts.instrument]
+
+    ### specify the line-of-sight frame in which we should sample
+    if opts.line_of_sight:
+        pole = utils.IFOs2pole(*opts.line_of_sight)
+
+    else:
+        pole = None
+
+    ### data
+    hpf, hxf = utils.h2pol(utils.h2hAtT(freqs, h, tac), iota, distance=distance)
+    if opts.zeroNoise: ### only add the signal
+        data = [detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=False) for detector in detectors]
+
+    else: ### add signal and Gaussian noise
+        data = [detector.drawNoise(freqs)+detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=False) for detector in detectors]
+
+    ### set up arguments
+    args = (freqs, data, h, detectors)
+    kwargs = {
+        'zeroFreq':opts.zeroFreq,
+        'minDistance':opts.min_distance,
+        'maxDistance':opts.max_distance,
+        'minT0':opts.min_tac,
+        'maxT0':opts.max_tac,
+        'pole':pole,
+    }
+
+    ### write to pkl file
+    pklname = "%s/localize-grid-setup%s.pkl"%(opts.output_dir, opts.tag)
+    if opts.verbose:
+        print( "    writing args, kwargs to : "+pklname )
+    utils.dump_setup(pklname, args, kwargs)
+
+#------------------------
+
+if opts.verbose:
+    print( 'setting up grid over theta, phi' )
+
+raise NotImplementedError, 'implement gridding'
+
+#------------------------
+
+if opts.verbose:
+    print( 'writing SUB and associated DAG' )
+
+raise NotImplementedError, 'implement dag-writer'
+
+if opts.submit:
+    cmd = 'condor_submit_dag %d'%dag
+    if opts.verbose:
+        print( '    '+cmd )
+    sp.Popen(cmd.split().wait()

@@ -1,0 +1,101 @@
+#!/usr/bin/env python
+
+usage = "localize-theta-phi [--options] theta phi setup.pkl"
+description = """\
+a quick sampler over extrinsic parameters to study the effects of frequency dependent antenna patterns on localization. 
+Angles specified as arguments should be in radians, unless --args-are-degrees is provided. 
+Distance should be in Mpc.
+Performs grid-based computation instead of a stochastic sampling"""
+author = "Reed Essick"
+
+#-------------------------------------------------
+
+import os
+import sys
+
+import time
+
+import numpy as np
+
+import simUtils as utils
+
+from optparse import OptionParser
+
+#-------------------------------------------------
+
+known_detectors = utils.known_detectors
+
+Ndim = 6 # theta, phi, psi, iota, distance, tac
+
+#-------------------------------------------------
+
+parser = OptionParser(usage=usage, description=description)
+
+### output options
+
+parser.add_option('-v', '--verbose', default=False, action='store_true')
+parser.add_option('-V', '--Verbose', default=False, action='store_true',
+    help='print progress bar during sampling')
+parser.add_option('-o', '--output-dir', default='.', type='string')
+parser.add_option('-t', '--tag', default='', type='string')
+
+### parameters about the samplers
+
+parser.add_option('', '--min-distance', default=1, type='float',
+    help='in Mpc. DEFAULT=1')
+parser.add_option('', '--max-distance', default=1000, type='float',
+    help='in Mpc. DEFAULT=1000')
+
+parser.add_option('', '--min-tac', default=-1.0, type='float',
+    help='in seconds. DEFAULT=-1.0')
+parser.add_option('', '--max-tac', default=+1.0, type='float',
+    help='in seconds. DEFAULT=+1.0')
+
+# gridding
+parser.add_option('', '--N-psi', default=100, type='int')
+parser.add_option('', '--N-iota', default=100, type='int')
+parser.add_option('', '--N-distance', default=100, type='int')
+parser.add_option('', '--N-tac', default=100, type='int')
+
+parser.add_option('', '--args-are-degrees', default=False, action='store_true',
+    help='interpret angles specified as arguments in degrees instead of radians')
+
+opts, args = parser.parse_args()
+
+if not os.path.exists(opts.output_dir):
+    os.makedirs(opts.output_dir)
+
+if opts.tag:
+    opts.tag = "_"+opts.tag
+
+opts.verbose = opts.verbose or opts.Verbose or opts.time
+
+assert len(args)==3, 'please supply exactly 3 input arguments\n%s'%usage
+setup, theta, phi = args
+theta = float(theta)
+phi = float(phi)
+if opts.args_are_degrees:
+    deg2rad = np.pi/180
+    theta *= deg2rad
+    phi *= deg2rad
+
+#-------------------------------------------------
+
+if opts.verbose:
+    print( 'loading setup from : '+setup )
+args, kwargs = utils.load_setup(setup)
+pole = kwargs['pole'] ### we use this outside of kwargs
+
+#------------------------
+
+if opts.verbose:
+    print( 'setting up grid over psi, iota, distance, tac' )
+
+raise NotImplementedError, 'implement gridding'
+
+#------------------------
+
+if opts.verbose:
+    print( 'computing posterior along grid' )
+
+raise NotImplementedError, 'iterate over grid and compute lnpost'
