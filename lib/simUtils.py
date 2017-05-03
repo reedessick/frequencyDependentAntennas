@@ -6,6 +6,7 @@ author = "Reed Essick"
 from lal.lal import C_SI as c
 
 import numpy as np
+from scipy.special import erfinv
 import healpy as hp
 
 import freqDepAntennas as ant
@@ -438,3 +439,46 @@ def load_setup( path ):
     kwargs = pickle.load(file_obj)
     file_obj.close()
     return args, kwargs
+
+#-------------------------------------------------
+
+def lineOfSightGrid( theta, phi, Ntheta, Nphi, sigmaTheta, pole=None ):
+    '''
+    assumes theta, phi are in Earth fixed coordinates.
+    generates a grid in line of sight coordinates around the corresponding theta_los, phi_los
+    returns that grid in Earth fixed coords
+    return thetaGRID, phiGRID
+    '''
+    theta_los, phi_los = ThetaPhi2LineOfSight(theta, phi, pole=pole)
+
+    # phi is easy, just wrap it around the azimuth
+    phiGRID = np.linspace(0, 2*np.pi, Nphi+1)[:-1]
+
+    # theta is a bit ad hoc, but should be a gaussian centered on the injected location
+    thetaGRID = erfinv(np.linspace(0,1,Ntheta/2+1)[:-1])
+    thetaGRID = theta_los + sigmaTheta*np.concatenate((-thetaGRID[::-1], thetaGRID[1:]))
+    thetaGRID = thetaGRID[(thetaGRID>=0)*(thetaGRID<=np.pi)]
+
+    ### rotate back to Earth-fixed
+    thetaGRID, phiGRID = np.meshgrid(thetaGRID, phiGRID)
+    thetaGRID, phiGRID = lineOfSight2ThetaPhi(thetaGRID, phiGRID, pole=pole)
+
+    return thetaGRID, phiGRID
+
+def psiGrid( Npsi ):
+    '''
+    returns a grid over psi
+    '''
+    return np.linspace(0, np.pi, Npsi+1)[:-1]
+
+def timeAtCoalescenceGrid( Ntac, minT0=-1., maxT0=1. **kwargs ):
+    '''
+    returns grid over timeAtCoalescence
+    '''
+    return np.linspace(minT0, maxT0, Ntac)
+
+def iotaDistanceGrid( iota, distance, Niota, distance, minDistance=1, maxDistance=1000, **kwargs ):
+    '''
+    returns a grid over iota and distance
+    '''
+    raise NotImplementedError

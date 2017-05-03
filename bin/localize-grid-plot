@@ -1,0 +1,166 @@
+#!/usr/bin/env python
+
+usage = "localize-grid-plot [--options] theta phi psi iota distance timeAtCoalescence"
+description = "a visualization tool to see our grid and the results from the calculation"
+author = "Reed Essick"
+
+#-------------------------------------------------
+
+import os
+
+import numpy as np
+
+import simUtils as utils
+
+import matplotlib
+matplotlib.use("Agg")
+from matplotlib import pyplot as plt
+plt.rcParams.update({
+    'text.usetex':True,
+    'font.family': 'serif',
+#    'font.serif': ['Computer Modern'],
+#    "axes.grid": True,
+#    "axes.axisbelow": False,
+#    "axes.formatter.limits": (-3, 4),
+    "axes.labelsize": 20,
+    "axes.titlesize": 22,
+    "figure.subplot.bottom": 0.13,
+    "figure.subplot.left": 0.20,
+    "figure.subplot.right": 0.85,
+    "figure.subplot.top": 0.95,
+    "grid.color": 'gray',
+#    "image.aspect": 'auto',
+#    "image.interpolation": 'nearest',
+#    "image.origin": 'lower',
+    "xtick.labelsize": 15,
+    "ytick.labelsize": 15,
+})
+
+from optparse import OptionParser
+
+#-------------------------------------------------
+
+axpos = [0.07, 0.05, 0.92, 0.90]
+
+known_detectors = utils.known_detectors
+Ndim = 6
+
+#-------------------------------------------------
+
+parser = OptionParser(usage=usage, description=description)
+
+### output options
+
+parser.add_option('-v', '--verbose', default=False, action='store_true')
+
+parser.add_option('-o', '--output-dir', default='.', type='string')
+parser.add_option('-t', '--tag', default='', type='string')
+
+### what to plot
+parser.add_option('', '--grid-placement', default=False, action='store_true',
+    help='make a scatter plot of grid placement')
+
+parser.add_option('', '--results', default=False, action='store_true',
+    help='plot the results of the calculation')
+
+### coordinate systems
+
+parser.add_option('', '--line-of-sight', nargs=2, default=None, type='string',
+    help='sample in the line-of-sight frame defined by 2 known detectors (eg: "--line-of-sight H L").\
+If specified, injection args will will be interpreted in Earth-Fixed coords and posterior samples will be reported \
+in Earth-Fixed coords, but the sampler will use the line-of-sight frame.')
+
+# gridding
+parser.add_option('', '--N-theta', default=100, type='int')
+parser.add_option('', '--sigma-theta', default=np.pi/36, type='float',
+    help='width for gaussian we define around theta in the line-of-sight frame. \
+May be truncated to keep theta within coordinate boundaries.\
+If --args-are-degrees, we will interpret this as degrees instead of radians.\
+DEFAULT=pi/36')
+parser.add_option('', '--N-phi', default=100, type='int')
+parser.add_option('', '--N-psi', default=100, type='int')
+parser.add_option('', '--N-iota', default=100, type='int')
+parser.add_option('', '--N-distance', default=100, type='int')
+parser.add_option('', '--N-tac', default=100, type='int')
+
+parser.add_option('', '--args-are-degrees', default=False, action='store_true',
+    help='interpret angles specified as arguments in degrees instead of radians')
+
+opts, args = parser.parse_args()
+
+if not os.path.exists(opts.output_dir):
+    os.makedirs(opts.output_dir)
+
+if opts.tag:
+    opts.tag = "_"+opts.tag
+
+if opts.line_of_sight:
+    assert np.all([known_detectors.has_key(ifo) for ifo in opts.line_of_sight]), 'please supply only known ifos with --line-of-sight\n%s'%(', '.join(known_detectors.keys()))
+
+else:
+    raise ValueError, 'please supply line-of-sight so we can intelligently grid the space'
+pole = utils.IFOs2pole(*opts.line_of_sight)
+
+assert len(args)==Ndim, 'please supply exactly %d input arguments\n%s'%(Ndim, usage)
+theta, phi, psi, iota, distance, tac = [float(_) for _ in args]
+
+if opts.args_are_degrees:
+    deg2rad = np.pi/180
+    theta *= deg2rad
+    phi *= deg2rad
+    psi *= deg2rad
+    iota *= deg2rad
+    opts.sigma_theta *= deg2rad
+
+theta, phi, psi, iota, distance, tac = utils.symmetries(theta, phi, psi, iota, distance, tac)
+
+#-------------------------------------------------
+
+### placement of the grid points
+if opts.grid_placement:
+    if opts.verbose:
+        print( "plotting grid placement" )
+
+    thetaGRID, phiGRID = utils.lineOfSightGrid(theta, phi, opts.N_theta, opts.N_phi, opts.sigma_theta, pole=pole)
+
+    ### plot in EarthFixed
+    fig = plt.figure()
+    ax = fig.add_axes(axpos, projection='mollweide')
+
+    ax.scatter(phiGRID - 2*np.pi*(phiGRID>np.pi), 0.5*np.pi-thetaGRID, marker='.', s=1)
+    ax.plot(phi - 2*np.pi*(phi>np.pi), 0.5*np.pi-theta, color='r', marker='x', markersize=10)
+
+    ax.grid(True, which='both')
+
+    figname = "%s/localize-grid_placement%s.png"%(opts.output_dir, opts.tag)
+    if opts.verbose:
+        print( '    saving : '+figname )
+    fig.savefig(figname)
+    plt.close(fig)
+
+    ### plot in LOS
+    thetaGRID_los, phiGRID_los = utils.ThetaPhi2LineOfSight(thetaGRID, phiGRID, pole=pole)
+    theta_los, phi_los = utils.ThetaPhi2LineOfSight(theta, phi, pole=pole)
+
+    fig = plt.figure()
+    ax = fig.add_axes(axpos, projection='mollweide')
+
+    ax.scatter(phiGRID_los - 2*np.pi*(phiGRID_los>np.pi), 0.5*np.pi-thetaGRID_los, marker='.', s=1)
+    ax.plot(phi_los - 2*np.pi*(phi_los>np.pi), 0.5*np.pi-theta_los, color='r', marker='x', markersize=10)
+
+    ax.grid(True, which='both')
+
+    figname = "%s/localize-grid_placement-%s%s.png"%(opts.output_dir, ''.join(opts.line_of_sight), opts.tag)
+    if opts.verbose:
+        print( '    saving : '+figname )
+    fig.savefig(figname)
+    plt.close(fig)
+
+
+#------------------------
+
+### results from computation
+if opts.results:
+    if opts.verbose:
+        print( "plotting results from calculation" )
+    raise NotImplementedError

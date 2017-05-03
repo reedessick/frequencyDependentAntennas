@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-usage = "localize-dagwriter [--options] theta phi psi iota distance timeAtCoalescence"
+usage = "localize-grid-dagwriter [--options] theta phi psi iota distance timeAtCoalescence"
 description = """\
 a quick sampler over extrinsic parameters to study the effects of frequency dependent antenna patterns on localization. 
 Angles specified as arguments should be in radians, unless --args-are-degrees is provided. 
@@ -11,12 +11,8 @@ author = "Reed Essick"
 #-------------------------------------------------
 
 import os
-import sys
-
-import time
 
 import numpy as np
-import healpy as hp
 
 import simUtils as utils
 
@@ -45,19 +41,23 @@ parser = OptionParser(usage=usage, description=description)
 ### output options
 
 parser.add_option('-v', '--verbose', default=False, action='store_true')
-parser.add_option('-V', '--Verbose', default=False, action='store_true',
-    help='print progress bar during sampling')
-parser.add_option('', '--status-width', default=100, type='int',
-    help='the width of the status bar printed if --Verbose is supplied. Default=100')
-parser.add_option('', '--time', default=False, action='store_true')
 
 parser.add_option('-o', '--output-dir', default='.', type='string')
 parser.add_option('-t', '--tag', default='', type='string')
 
 ### condor management
 parser.add_option('', '--submit', default=False, action='store_true')
+
+parser.add_option('', '--universe', default='vanilla', type='string')
+parser.add_option('', '--exe', default='localize-grid-theta-phi', type='string',
+    help='full path to the executable for jobs. DEFAULT="localize-grid-theta-phi" \
+which will require this to be on your path')
+
 parser.add_option('', '--accounting-group', default=None)
 parser.add_option('', '--accounting-group-user', default=None)
+
+parser.add_option('', '--retry', default=1, type='int',
+    help='DEFAULT=1')
 
 ### checkpointing
 
@@ -97,6 +97,11 @@ parser.add_option('', '--max-tac', default=+1.0, type='float',
 
 # gridding
 parser.add_option('', '--N-theta', default=100, type='int')
+parser.add_option('', '--sigma-theta', default=np.pi/36, type='float',
+    help='width for gaussian we define around theta in the line-of-sight frame. \
+May be truncated to keep theta within coordinate boundaries.\
+If --args-are-degrees, we will interpret this as degrees instead of radians.\
+DEFAULT=pi/36')
 parser.add_option('', '--N-phi', default=100, type='int')
 parser.add_option('', '--N-psi', default=100, type='int')
 parser.add_option('', '--N-iota', default=100, type='int')
@@ -141,11 +146,6 @@ if not os.path.exists(opts.output_dir):
 if opts.tag:
     opts.tag = "_"+opts.tag
 
-opts.verbose = opts.verbose or opts.Verbose or opts.time
-
-if opts.resume and (not opts.setup):
-    raise ValueError, 'cannot resume sampling without setup.pkl!'
-
 if opts.line_of_sight:
     assert np.all([known_detectors.has_key(ifo) for ifo in opts.line_of_sight]), 'please supply only known ifos with --line-of-sight\n%s'%(', '.join(known_detectors.keys()))
 
@@ -157,6 +157,9 @@ if not opts.accounting_group:
 
 if not opts.accounting_group_user:
     opts.accounting_group_user = raw_input('--accounting-group-user=')
+
+if opts.args_are_degrees:
+    opts.sigma_theta *= np.pi/180
 
 #-------------------------------------------------
 
@@ -244,23 +247,87 @@ else:
     if opts.verbose:
         print( "    writing args, kwargs to : "+pklname )
     utils.dump_setup(pklname, args, kwargs)
+    opts.setup = pklname
 
 #------------------------
 
 if opts.verbose:
     print( 'setting up grid over theta, phi' )
 
-raise NotImplementedError, 'implement gridding'
+### set up grids in line-of-sight frame
+thetaGRID, phiGRID = utils.lineOfSightGrid(theta, phi, opts.N_theta, opts.N_phi, opts.sigma_theta, pole=pole)
+if opts.args_are_degrees:
+    rad2deg = 180/np.pi
+    thetaGRID *= rad2deg
+    phiGRID *= rad2deg
 
 #------------------------
 
+### set up condor files
+sub = "%s/localize-grid%s.sub"%(opts.output_dir, opts.tag)
 if opts.verbose:
-    print( 'writing SUB and associated DAG' )
+    print( 'writing SUB : '+sub )
 
-raise NotImplementedError, 'implement dag-writer'
+sub_obj = open(sub, 'w')
+sub_obj.write('''\
+universe = %(universe)s
+executable = %(exe)s
+arguments = "$(theta)s $(phi)s %(setup)s $(args_are_degrees)s $(tag)s $(verbose)s --output-dir %(outdir)s --N-psi %(Npsi)d --N-iota %(Niota)d --N-distance %(Ndistance)d --N-tac %(Ntac)d --min-distance %(minDistance)f --max-distance %(maxDistance)f --min-tac %(minTAC)f --max-tac %(maxTAC)f"
+getenv = true
+accounting_group = %(accounting_group)s
+accounting_group_user = %(accounting_group_user)s
+log    = %(outdir)s/localize-grid%(tag)s-$(Cluster)-$(Process).log
+error  = %(outdir)s/localize-grid%(tag)s-$(Cluster)-$(Process).err 
+output = %(outdir)s/localize-grid%(tag)s-$(Cluster)-$(Process).out
+notification = never
+queue 1'''%{
+    'universe':opts.universe,
+    'exe':opts.exe,
+    'setup':opts.setup,
+    'Npsi':opts.N_psi,
+    'Niota':opts.N_iota,
+    'Ndistance':opts.N_distance,
+    'Ntac':opts.N_tac,
+    'minDistance':opts.min_distance,
+    'maxDistance':opts.max_distance,
+    'minTAC':opts.min_tac,
+    'maxTAC':opts.max_tac,
+    'outdir':opts.output_dir,
+    'tag':opts.tag,
+    'accounting_group':opts.accounting_group,
+    'accounting_group_user':opts.accounting_group_user,
+}
+)
+sub_obj.close()
+
+dag = "%s/localize-grid%s.dag"%(opts.output_dir, opts.tag)
+if opts.verbose:
+    print( 'writing DAG : '+dag )
+dag_obj = open(dag, 'w')
+
+dagDict = {
+    'sub':sub,
+    'jobid':0,
+    'retry':opts.retry,
+    'args_are_degrees':'--args-are-degrees' if opts.args_are_degrees else '',
+    'verbose':'--verbose' if opts.verbose else '',
+    'tag':opts.tag,
+}
+for t, p in zip(thetaGRID.flatten(), phiGRID.flatten()): ### iterate over grid points, a single job for each
+    dagDict['theta'] = t
+    dagDict['phi'] = p
+    dag_obj.write('''\
+JOB %(jobid)d %(sub)s
+VARS %(jobid)d phi="%(phi)f" theta="%(theta)f" args_are_degrees="%(args_are_degrees)s" verbose="%(verbose)s" tag="%(jobid)d%(tag)s"
+RETRY %(jobid)d %(retry)d\n'''%dagDict
+    )
+    dagDict['jobid'] += 1
+dag_obj.close()
+
+#------------------------
 
 if opts.submit:
     cmd = 'condor_submit_dag %d'%dag
     if opts.verbose:
         print( '    '+cmd )
-    sp.Popen(cmd.split().wait()
+    sp.Popen(cmd.split()).wait()

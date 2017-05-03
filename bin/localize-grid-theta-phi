@@ -34,22 +34,11 @@ parser = OptionParser(usage=usage, description=description)
 ### output options
 
 parser.add_option('-v', '--verbose', default=False, action='store_true')
-parser.add_option('-V', '--Verbose', default=False, action='store_true',
-    help='print progress bar during sampling')
+
 parser.add_option('-o', '--output-dir', default='.', type='string')
 parser.add_option('-t', '--tag', default='', type='string')
 
 ### parameters about the samplers
-
-parser.add_option('', '--min-distance', default=1, type='float',
-    help='in Mpc. DEFAULT=1')
-parser.add_option('', '--max-distance', default=1000, type='float',
-    help='in Mpc. DEFAULT=1000')
-
-parser.add_option('', '--min-tac', default=-1.0, type='float',
-    help='in seconds. DEFAULT=-1.0')
-parser.add_option('', '--max-tac', default=+1.0, type='float',
-    help='in seconds. DEFAULT=+1.0')
 
 # gridding
 parser.add_option('', '--N-psi', default=100, type='int')
@@ -79,6 +68,11 @@ if opts.args_are_degrees:
     theta *= deg2rad
     phi *= deg2rad
 
+if opts.verbose:
+    print( 'loading setup from : '+opts.setup )
+args, kwargs = utils.load_setup(opts.setup)
+pole = kwargs['pole'] ### we use this outside of kwargs
+
 #-------------------------------------------------
 
 if opts.verbose:
@@ -91,11 +85,21 @@ pole = kwargs['pole'] ### we use this outside of kwargs
 if opts.verbose:
     print( 'setting up grid over psi, iota, distance, tac' )
 
-raise NotImplementedError, 'implement gridding'
+psiGRID = utils.psiGrid(opts.N_psi)
+t0GRID = utils.timeAtCoalescenceGrid(opts.N_tac, **kwargs)
+iotaGRID, distanceGRID = utils.iotaDistanceGrid(iota, distance, opts.N_iota, opts.N_distance, **kwargs)
 
 #------------------------
 
+out = "%s/localize-grid%s.txt"%(opts.output_dir, opts.tag)
 if opts.verbose:
-    print( 'computing posterior along grid' )
+    print( 'computing posterior along grid\nreporting to : '+out )
+out_obj = open(out, 'w')
+print >> out_obj, 'lnpost theta phi psi iota distanceMpc timeAtCoalescence'
 
-raise NotImplementedError, 'iterate over grid and compute lnpost'
+template = "%.9f %.9f %.9f %.9f %.9f %.9f %.9f"
+for psi in psiGRID:
+    for t0 in tacGRID:
+        for iota, distance in zip(iotaGRID, distanceGRID):
+            print >> out_obj, template%(utils.lnPosterior((theta, phi, psi, iota, distance, t0), *args, **kwargs), theta, phi, psi, iota, distance, t0)
+out.close()
