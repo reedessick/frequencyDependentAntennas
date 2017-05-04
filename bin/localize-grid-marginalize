@@ -1,0 +1,90 @@
+#!/usr/bin/env python
+
+usage = "localize-grid-marginalize [--options] txt txt txt ..."
+description = "read in the data produced by localize-grid-theta-phi and marginalize into desired posteriors"
+author = "Reed Essick"
+
+#-------------------------------------------------
+
+import os
+
+import numpy as np
+
+import simUtils as utils
+
+from collections import defaultdict
+
+from optparse import OptionParser
+
+#-------------------------------------------------
+
+known_detectors = utils.known_detectors
+
+#-------------------------------------------------
+
+parser = OptionParser(usage=usage, description=description)
+
+### output options
+parser.add_option('-v', '--verbose', default=False, action='store_true')
+
+parser.add_option('-o', '--output-dir', default='.', type='string')
+parser.add_option('-t', '--tag', default='', type='string')
+
+opts, args = parser.parse_args()
+
+if not os.path.exists(opts.output_dir):
+    os.makedirs(opts.output_dir)
+
+if opts.tag:
+    opts.tag = "_"+opts.tag
+
+#-------------------------------------------------
+
+### set up dictionaries to hold data for marginalization
+theta_phi = defaultdict( float )
+iota_distance = defaultdict( float )
+N = 0. ### total number of samples. Used for marginalization
+
+### iterate over arguments
+if opts.verbose:
+    print( 'reading samples from :' )
+for txt in args:
+    if opts.verbose:
+        print( '    '+txt )
+
+    samples = np.genfromtxt(txt, names=True)
+    N += len(samples)
+
+    ### iterate over samples and add posterior to each grid point
+    for lnL, lnP, theta, phi, iota, distance in \
+        zip(
+            samples['lnLikelihood'], 
+            samples['lnPrior'], 
+            samples['theta'], 
+            samples['phi'], 
+            samples['iota'], 
+            samples['distanceMpc'],
+        ):
+#        post = np.exp(lnL+lnP)
+        post = np.exp(lnL) ### our grid placement essentially takes into account the prior weighting already! (essentially importance sampling)
+        theta_phi[(theta, phi)] += post
+        iota_distance[(iota, distance)] += post
+
+### report marginalized distributions
+theta_phi_out = "%s/localize-grid-marginalize_ThetaPhi%s.txt"%(opts.output_dir, opts.tag)
+iota_distance_out = "%s/localize-grid-marginalize_IotaDistance%s.txt"%(opts.output_dir, opts.tag)
+
+template = "%.9f %.9f %.9f"
+for header, data, out in \
+    [
+        ('lnprob theta phi', theta_phi, "%s/localize-grid-marginalize_ThetaPhi%s.txt"%(opts.output_dir, opts.tag)),
+        ('lnprob iota distanceMpc', theta_phi, "%s/localize-grid-marginalize_ThetaPhi%s.txt"%(opts.output_dir, opts.tag)),
+    ]:
+    
+    if opts.verbose:
+        print( 'writing : '+out )
+    out_obj = open(out, 'w')
+    print >> out_obj, header
+    for (x, y), lnprob in data.items():
+        print >>out_obj, template%(lnprob, x, y)
+    out_obj.close()
