@@ -282,7 +282,7 @@ sub_obj = open(sub, 'w')
 sub_obj.write('''\
 universe = %(universe)s
 executable = %(exe)s
-arguments = "%(setup)s $(theta)s $(phi)s $(args_are_degrees)s $(tag)s $(verbose)s --output-dir %(outdir)s --N-psi %(Npsi)d --N-iota %(Niota)d --N-distance %(Ndistance)d --N-tac %(Ntac)d --min-distance %(minDistance)f --max-distance %(maxDistance)f --distance-padding-factor %(distance_padding_factor)e --min-tac %(minTAC)f --max-tac %(maxTAC)f"
+arguments = "%(setup)s $(theta) $(phi) $(args_are_degrees) $(verbose) -t $(tag) --output-dir %(outdir)s --N-psi %(Npsi)d --N-iota %(Niota)d --N-distance %(Ndistance)d --N-tac %(Ntac)d --distance-padding-factor %(distance_padding_factor)e"
 getenv = true
 accounting_group = %(accounting_group)s
 accounting_group_user = %(accounting_group_user)s
@@ -298,11 +298,7 @@ queue 1'''%{
     'Niota':opts.N_iota,
     'Ndistance':opts.N_distance,
     'Ntac':opts.N_tac,
-    'minDistance':opts.min_distance,
-    'maxDistance':opts.max_distance,
     'distance_padding_factor':opts.distance_padding_factor,
-    'minTAC':opts.min_tac,
-    'maxTAC':opts.max_tac,
     'outdir':opts.output_dir,
     'tag':opts.tag,
     'accounting_group':opts.accounting_group,
