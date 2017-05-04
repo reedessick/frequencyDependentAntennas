@@ -108,6 +108,10 @@ parser.add_option('', '--N-iota', default=100, type='int')
 parser.add_option('', '--N-distance', default=100, type='int')
 parser.add_option('', '--N-tac', default=100, type='int')
 
+parser.add_option('', '--distance-padding-factor', default=2, type='float',
+    help='the factor by which we inflate the maximum distance (mixed with inclination) \
+relative to what the injection actually was within iotaDistanceGrid')
+
 ### parameters about the injected signal
 
 parser.add_option('', '--m1', default=1.4, type='float',
@@ -240,6 +244,12 @@ else:
         'minT0':opts.min_tac,
         'maxT0':opts.max_tac,
         'pole':pole,
+        'inj_theta':theta,
+        'inj_phi':phi,
+        'inj_psi':psi,
+        'inj_iota':iota,
+        'inj_distanceMpc': distance,
+        'inj_timeAtCoalescence': tac,
     }
 
     ### write to pkl file
@@ -272,7 +282,7 @@ sub_obj = open(sub, 'w')
 sub_obj.write('''\
 universe = %(universe)s
 executable = %(exe)s
-arguments = "$(theta)s $(phi)s %(setup)s $(args_are_degrees)s $(tag)s $(verbose)s --output-dir %(outdir)s --N-psi %(Npsi)d --N-iota %(Niota)d --N-distance %(Ndistance)d --N-tac %(Ntac)d --min-distance %(minDistance)f --max-distance %(maxDistance)f --min-tac %(minTAC)f --max-tac %(maxTAC)f"
+arguments = "%(setup)s $(theta)s $(phi)s $(args_are_degrees)s $(tag)s $(verbose)s --output-dir %(outdir)s --N-psi %(Npsi)d --N-iota %(Niota)d --N-distance %(Ndistance)d --N-tac %(Ntac)d --min-distance %(minDistance)f --max-distance %(maxDistance)f --distance-padding-factor %(distance_padding_factor)e --min-tac %(minTAC)f --max-tac %(maxTAC)f"
 getenv = true
 accounting_group = %(accounting_group)s
 accounting_group_user = %(accounting_group_user)s
@@ -290,6 +300,7 @@ queue 1'''%{
     'Ntac':opts.N_tac,
     'minDistance':opts.min_distance,
     'maxDistance':opts.max_distance,
+    'distance_padding_factor':opts.distance_padding_factor,
     'minTAC':opts.min_tac,
     'maxTAC':opts.max_tac,
     'outdir':opts.output_dir,
@@ -313,12 +324,12 @@ dagDict = {
     'verbose':'--verbose' if opts.verbose else '',
     'tag':opts.tag,
 }
-for t, p in zip(thetaGRID.flatten(), phiGRID.flatten()): ### iterate over grid points, a single job for each
+for t, p in zip(thetaGRID, phiGRID): ### iterate over grid points, a single job for each
     dagDict['theta'] = t
     dagDict['phi'] = p
     dag_obj.write('''\
 JOB %(jobid)d %(sub)s
-VARS %(jobid)d phi="%(phi)f" theta="%(theta)f" args_are_degrees="%(args_are_degrees)s" verbose="%(verbose)s" tag="%(jobid)d%(tag)s"
+VARS %(jobid)d theta="%(theta)f" phi="%(phi)f" args_are_degrees="%(args_are_degrees)s" verbose="%(verbose)s" tag="%(jobid)d%(tag)s"
 RETRY %(jobid)d %(retry)d\n'''%dagDict
     )
     dagDict['jobid'] += 1

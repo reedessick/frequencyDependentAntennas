@@ -45,6 +45,14 @@ axpos = [0.07, 0.05, 0.92, 0.90]
 known_detectors = utils.known_detectors
 Ndim = 6
 
+gridmarker='.'
+gridmarkersize=1
+gridmarkercolor='k'
+
+injmarker='x'
+injmarkersize=10
+injmarkercolor='r'
+
 #-------------------------------------------------
 
 parser = OptionParser(usage=usage, description=description)
@@ -82,6 +90,15 @@ parser.add_option('', '--N-psi', default=100, type='int')
 parser.add_option('', '--N-iota', default=100, type='int')
 parser.add_option('', '--N-distance', default=100, type='int')
 parser.add_option('', '--N-tac', default=100, type='int')
+
+parser.add_option('', '--min-distance', default=1, type='float',
+    help='in Mpc. DEFAULT=1')
+parser.add_option('', '--max-distance', default=1000, type='float',
+    help='in Mpc. DEFAULT=1000')
+
+parser.add_option('', '--distance-padding-factor', default=2, type='float',
+    help='the factor by which we inflate the maximum distance (mixed with inclination) \
+relative to what the injection actually was within iotaDistanceGrid')
 
 parser.add_option('', '--args-are-degrees', default=False, action='store_true',
     help='interpret angles specified as arguments in degrees instead of radians')
@@ -127,12 +144,12 @@ if opts.grid_placement:
     fig = plt.figure()
     ax = fig.add_axes(axpos, projection='mollweide')
 
-    ax.scatter(phiGRID - 2*np.pi*(phiGRID>np.pi), 0.5*np.pi-thetaGRID, marker='.', s=1)
-    ax.plot(phi - 2*np.pi*(phi>np.pi), 0.5*np.pi-theta, color='r', marker='x', markersize=10)
+    ax.scatter(phiGRID - 2*np.pi*(phiGRID>np.pi), 0.5*np.pi-thetaGRID, marker=gridmarker, s=gridmarkersize, color=gridmarkercolor)
+    ax.plot(phi - 2*np.pi*(phi>np.pi), 0.5*np.pi-theta, color=injmarkercolor, marker=injmarker, markersize=injmarkersize)
 
     ax.grid(True, which='both')
 
-    figname = "%s/localize-grid_placement%s.png"%(opts.output_dir, opts.tag)
+    figname = "%s/localize-grid_placement-ThetaPhi%s.png"%(opts.output_dir, opts.tag)
     if opts.verbose:
         print( '    saving : '+figname )
     fig.savefig(figname)
@@ -145,17 +162,36 @@ if opts.grid_placement:
     fig = plt.figure()
     ax = fig.add_axes(axpos, projection='mollweide')
 
-    ax.scatter(phiGRID_los - 2*np.pi*(phiGRID_los>np.pi), 0.5*np.pi-thetaGRID_los, marker='.', s=1)
-    ax.plot(phi_los - 2*np.pi*(phi_los>np.pi), 0.5*np.pi-theta_los, color='r', marker='x', markersize=10)
+    ax.scatter(phiGRID_los - 2*np.pi*(phiGRID_los>np.pi), 0.5*np.pi-thetaGRID_los, marker=gridmarker, s=gridmarkersize, color=gridmarkercolor)
+    ax.plot(phi_los - 2*np.pi*(phi_los>np.pi), 0.5*np.pi-theta_los, color=injmarkercolor, marker=injmarker, markersize=injmarkersize)
 
     ax.grid(True, which='both')
 
-    figname = "%s/localize-grid_placement-%s%s.png"%(opts.output_dir, ''.join(opts.line_of_sight), opts.tag)
+    figname = "%s/localize-grid_placement-ThetaPhi-%s%s.png"%(opts.output_dir, ''.join(opts.line_of_sight), opts.tag)
     if opts.verbose:
         print( '    saving : '+figname )
     fig.savefig(figname)
     plt.close(fig)
 
+    ### plot iota-distance gridding
+    iotaGRID, distanceGRID = utils.iotaDistanceGrid(iota, distance, opts.N_iota, opts.N_distance, minDistance=opts.min_distance, maxDistance=opts.max_distance, padding=opts.distance_padding_factor)
+    fig = plt.figure()
+    ax = fig.gca()
+
+    ax.scatter(iotaGRID*180/np.pi, distanceGRID, marker=gridmarker, s=gridmarkersize, color=gridmarkercolor)
+    ax.plot(iota*180/np.pi, distance, color=injmarkercolor, marker=injmarker, markersize=injmarkersize)
+
+    ax.set_xlabel('$\iota$ [$^\circ$]')
+    ax.set_ylabel('$D$ [Mpc]')
+
+    ax.set_xlim(xmin=0, xmax=180)
+    ax.set_ylim(ymin=np.min(distanceGRID), ymax=np.max(distanceGRID))
+
+    figname = "%s/localize-grid_placement-IotaDistance%s.png"%(opts.output_dir, opts.tag)
+    if opts.verbose:
+        print( '    saving : '+figname )
+    fig.savefig(figname)
+    plt.close(fig)
 
 #------------------------
 

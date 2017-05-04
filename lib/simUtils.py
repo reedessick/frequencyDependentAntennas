@@ -461,7 +461,7 @@ def lineOfSightGrid( theta, phi, Ntheta, Nphi, sigmaTheta, pole=None ):
 
     ### rotate back to Earth-fixed
     thetaGRID, phiGRID = np.meshgrid(thetaGRID, phiGRID)
-    thetaGRID, phiGRID = lineOfSight2ThetaPhi(thetaGRID, phiGRID, pole=pole)
+    thetaGRID, phiGRID = lineOfSight2ThetaPhi(thetaGRID.flatten(), phiGRID.flatten(), pole=pole)
 
     return thetaGRID, phiGRID
 
@@ -471,14 +471,34 @@ def psiGrid( Npsi ):
     '''
     return np.linspace(0, np.pi, Npsi+1)[:-1]
 
-def timeAtCoalescenceGrid( Ntac, minT0=-1., maxT0=1. **kwargs ):
+def timeAtCoalescenceGrid( Ntac, minT0=-1., maxT0=1., **kwargs ):
     '''
     returns grid over timeAtCoalescence
     '''
     return np.linspace(minT0, maxT0, Ntac)
 
-def iotaDistanceGrid( iota, distance, Niota, distance, minDistance=1, maxDistance=1000, **kwargs ):
+def iotaDistanceGrid( iota, distance, Niota, Ndistance, minDistance=1, maxDistance=1000, padding=2., **kwargs ):
     '''
     returns a grid over iota and distance
+
+    return iotaGRID, distanceGRID
     '''
-    raise NotImplementedError
+    cosIotaGRID = np.outer(np.linspace(-1, 1, Niota), np.ones(Ndistance)) ### spacing of inclinations
+
+    ### maximum allowed "scaling constant" for placing distance grid
+    ### take into account the detectability (malmquist prior -> gets rid of a lot of otherwise very densely sampled parameter-space
+    cosIota2 = np.cos(iota)**2 
+    dM3 = ( (padding*distance)**2 / ((1+cosIota2)**2+cosIota2) )**(3./2)
+
+    ### minimum allowed "scaling constant" for distance grid
+    dm3 = (minDistance/5**0.5)**3
+
+    do = np.outer(np.ones(Niota), np.linspace(dm3, dM3, Ndistance)**(1./3)) ### constants for scaling relation
+
+    cosIota2GRID = cosIotaGRID**2
+    distanceGRID = do*((1+cosIota2GRID)**2 + cosIota2GRID)**0.5
+
+    distanceGRID = distanceGRID.flatten()
+    truth = (distanceGRID>=minDistance)*(distanceGRID<=maxDistance) ### exclude points outside of prior bounds
+
+    return np.arccos(cosIotaGRID).flatten()[truth], distanceGRID[truth]

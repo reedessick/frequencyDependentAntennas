@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-usage = "localize-theta-phi [--options] theta phi setup.pkl"
+usage = "localize-theta-phi [--options] setup.pkl theta phi iota distance"
 description = """\
 a quick sampler over extrinsic parameters to study the effects of frequency dependent antenna patterns on localization. 
 Angles specified as arguments should be in radians, unless --args-are-degrees is provided. 
@@ -23,28 +23,27 @@ from optparse import OptionParser
 
 #-------------------------------------------------
 
-known_detectors = utils.known_detectors
-
-Ndim = 6 # theta, phi, psi, iota, distance, tac
-
-#-------------------------------------------------
-
 parser = OptionParser(usage=usage, description=description)
 
 ### output options
 
 parser.add_option('-v', '--verbose', default=False, action='store_true')
+parser.add_option('-V', '--Verbose', default=False, action='store_true')
+parser.add_option('', '--status-width', default=100, type='int',
+    help='the width of the status bar printed if --Verbose is supplied. Default=100')
 
 parser.add_option('-o', '--output-dir', default='.', type='string')
 parser.add_option('-t', '--tag', default='', type='string')
-
-### parameters about the samplers
 
 # gridding
 parser.add_option('', '--N-psi', default=100, type='int')
 parser.add_option('', '--N-iota', default=100, type='int')
 parser.add_option('', '--N-distance', default=100, type='int')
 parser.add_option('', '--N-tac', default=100, type='int')
+
+parser.add_option('', '--distance-padding-factor', default=2, type='float',
+    help='the factor by which we inflate the maximum distance (mixed with inclination) \
+relative to what the injection actually was within iotaDistanceGrid')
 
 parser.add_option('', '--args-are-degrees', default=False, action='store_true',
     help='interpret angles specified as arguments in degrees instead of radians')
@@ -57,7 +56,7 @@ if not os.path.exists(opts.output_dir):
 if opts.tag:
     opts.tag = "_"+opts.tag
 
-opts.verbose = opts.verbose or opts.Verbose or opts.time
+opts.verbose = opts.verbose or opts.Verbose
 
 assert len(args)==3, 'please supply exactly 3 input arguments\n%s'%usage
 setup, theta, phi = args
@@ -69,25 +68,18 @@ if opts.args_are_degrees:
     phi *= deg2rad
 
 if opts.verbose:
-    print( 'loading setup from : '+opts.setup )
-args, kwargs = utils.load_setup(opts.setup)
-pole = kwargs['pole'] ### we use this outside of kwargs
-
-#-------------------------------------------------
-
-if opts.verbose:
     print( 'loading setup from : '+setup )
 args, kwargs = utils.load_setup(setup)
 pole = kwargs['pole'] ### we use this outside of kwargs
 
-#------------------------
+#-------------------------------------------------
 
 if opts.verbose:
     print( 'setting up grid over psi, iota, distance, tac' )
 
 psiGRID = utils.psiGrid(opts.N_psi)
 t0GRID = utils.timeAtCoalescenceGrid(opts.N_tac, **kwargs)
-iotaGRID, distanceGRID = utils.iotaDistanceGrid(iota, distance, opts.N_iota, opts.N_distance, **kwargs)
+iotaGRID, distanceGRID = utils.iotaDistanceGrid(kwargs['inj_iota'], kwargs['inj_distanceMpc'], opts.N_iota, opts.N_distance, padding=opts.distance_padding_factor, **kwargs)
 
 #------------------------
 
@@ -95,11 +87,53 @@ out = "%s/localize-grid%s.txt"%(opts.output_dir, opts.tag)
 if opts.verbose:
     print( 'computing posterior along grid\nreporting to : '+out )
 out_obj = open(out, 'w')
-print >> out_obj, 'lnpost theta phi psi iota distanceMpc timeAtCoalescence'
+print >> out_obj, 'lnlikelihood lnprior theta phi psi iota distanceMpc timeAtCoalescence'
 
-template = "%.9f %.9f %.9f %.9f %.9f %.9f %.9f"
-for psi in psiGRID:
-    for t0 in tacGRID:
-        for iota, distance in zip(iotaGRID, distanceGRID):
-            print >> out_obj, template%(utils.lnPosterior((theta, phi, psi, iota, distance, t0), *args, **kwargs), theta, phi, psi, iota, distance, t0)
-out.close()
+template = "%.9f %.9f %.9f %.9f %.9f %.9f %.9f %.9f" ### used to format output files
+
+if opts.Verbose: ### print progress bar
+    progress = '\r[%s%s] %.2f'
+    sys.stdout.write(progress%('', ' '*opts.status_width, 0))
+    sys.stdout.flush()
+    i = 1.
+    N = len(psiGRID)*len(t0GRID)*len(iotaGRID)
+    for psi in psiGRID:
+        for t0 in t0GRID:
+            for iota, distance in zip(iotaGRID, distanceGRID):
+                print >> out_obj, template%(
+                    utils.lnLikelihood((theta, phi, psi, iota, distance, t0), *args, **kwargs), 
+                    utils.lnPrior((theta, phi, psi, iota, distance, t0), **kwargs), 
+                    theta, 
+                    phi, 
+                    psi, 
+                    iota, 
+                    distance, 
+                    t0,
+                )
+                out_obj.flush() ### only flush output if we're Verbose
+
+                ### print progress
+                f = i/N
+                n = int((opts.status_width)*f)
+                sys.stdout.write(progress%('-'*n, ' '*(opts.status_width-n), f*100))
+                sys.stdout.flush()
+
+                i += 1
+
+    sys.stdout.write("\n")
+
+else: ### just run "silently"
+    for psi in psiGRID:
+        for t0 in t0GRID:
+            for iota, distance in zip(iotaGRID, distanceGRID):
+                print >> out_obj, template%(
+                    utils.lnLikelihood((theta, phi, psi, iota, distance, t0), *args, **kwargs),
+                    utils.lnPrior((theta, phi, psi, iota, distance, t0), **kwargs),                           
+                    theta,
+                    phi,
+                    psi,
+                    iota,
+                    distance,
+                    t0,
+                )
+out_obj.close()
