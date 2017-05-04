@@ -80,12 +80,17 @@ class Detector(object):
         ### overall phase delay from extra time-of-flight
         ### r is measured in seconds
         ### FIXME: there could be a sign error here depending on our convention for FFT's...
-        sinTheta = np.sin(theta)
-        n = -np.array([np.cos(phi)*sinTheta, np.sin(phi)*sinTheta, np.cos(theta)])
-        dt = np.sum(self.r*n)
-        phs = twoIpi*freqs*dt
+        phs = twoIpi*freqs*self.dt(theta, phi)
 
         return (Fp*hpf + Fx*hxf)*np.exp(phs)
+
+    def dt(self, theta, phi):
+        """
+        time delay relative to geocenter
+        """
+        sinTheta = np.sin(theta)
+        n = -np.array([np.cos(phi)*sinTheta, np.sin(phi)*sinTheta, np.cos(theta)])
+        return np.sum(self.r*n)
 
     def drawNoise(self, freqs):
         """
@@ -471,11 +476,13 @@ def psiGrid( Npsi ):
     '''
     return np.linspace(0, np.pi, Npsi+1)[:-1]
 
-def timeAtCoalescenceGrid( Ntac, minT0=-1., maxT0=1., **kwargs ):
+def timeAtCoalescenceGrid( t0, theta_inj, phi_inj, detector, theta, phi, Ntac, minT0=-1., maxT0=1., **kwargs ):
     '''
     returns grid over timeAtCoalescence
+    we shift the grid around t0 to get the grid to be centered on the time-of-arival at detector when the signal comes from (theta,phi) instead of (theta_inj,phi_inj)
     '''
-    return np.linspace(minT0, maxT0, Ntac)
+    ###     time at detector from injection       shift back to geocenter      sample around that
+    return (t0+detector.dt(theta_inj, phi_inj)) - detector.dt(theta, phi) + np.linspace(minT0, maxT0, Ntac)
 
 def iotaDistanceGrid( iota, distance, Niota, Ndistance, minDistance=1, maxDistance=1000, padding=2., **kwargs ):
     '''

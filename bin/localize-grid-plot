@@ -45,13 +45,15 @@ axpos = [0.07, 0.05, 0.92, 0.90]
 known_detectors = utils.known_detectors
 Ndim = 6
 
-gridmarker='.'
+gridmarker='o'
 gridmarkersize=1
 gridmarkercolor='k'
+gridmarkeralpha=0.5
 
 injmarker='x'
 injmarkersize=10
 injmarkercolor='r'
+injmarkeralpha=1.0
 
 #-------------------------------------------------
 
@@ -144,8 +146,8 @@ if opts.grid_placement:
     fig = plt.figure()
     ax = fig.add_axes(axpos, projection='mollweide')
 
-    ax.scatter(phiGRID - 2*np.pi*(phiGRID>np.pi), 0.5*np.pi-thetaGRID, marker=gridmarker, s=gridmarkersize, color=gridmarkercolor)
-    ax.plot(phi - 2*np.pi*(phi>np.pi), 0.5*np.pi-theta, color=injmarkercolor, marker=injmarker, markersize=injmarkersize)
+    ax.scatter(phiGRID - 2*np.pi*(phiGRID>np.pi), 0.5*np.pi-thetaGRID, marker=gridmarker, s=gridmarkersize, color=gridmarkercolor, alpha=gridmarkeralpha)
+    ax.plot(phi - 2*np.pi*(phi>np.pi), 0.5*np.pi-theta, color=injmarkercolor, marker=injmarker, markersize=injmarkersize, alpha=injmarkeralpha)
 
     ax.grid(True, which='both')
 
@@ -162,8 +164,8 @@ if opts.grid_placement:
     fig = plt.figure()
     ax = fig.add_axes(axpos, projection='mollweide')
 
-    ax.scatter(phiGRID_los - 2*np.pi*(phiGRID_los>np.pi), 0.5*np.pi-thetaGRID_los, marker=gridmarker, s=gridmarkersize, color=gridmarkercolor)
-    ax.plot(phi_los - 2*np.pi*(phi_los>np.pi), 0.5*np.pi-theta_los, color=injmarkercolor, marker=injmarker, markersize=injmarkersize)
+    ax.scatter(phiGRID_los - 2*np.pi*(phiGRID_los>np.pi), 0.5*np.pi-thetaGRID_los, marker=gridmarker, s=gridmarkersize, color=gridmarkercolor, alpha=gridmarkeralpha)
+    ax.plot(phi_los - 2*np.pi*(phi_los>np.pi), 0.5*np.pi-theta_los, color=injmarkercolor, marker=injmarker, markersize=injmarkersize, alpha=injmarkeralpha)
 
     ax.grid(True, which='both')
 
@@ -178,8 +180,8 @@ if opts.grid_placement:
     fig = plt.figure()
     ax = fig.gca()
 
-    ax.scatter(iotaGRID*180/np.pi, distanceGRID, marker=gridmarker, s=gridmarkersize, color=gridmarkercolor)
-    ax.plot(iota*180/np.pi, distance, color=injmarkercolor, marker=injmarker, markersize=injmarkersize)
+    ax.scatter(iotaGRID*180/np.pi, distanceGRID, marker=gridmarker, s=gridmarkersize, color=gridmarkercolor, alpha=gridmarkeralpha)
+    ax.plot(iota*180/np.pi, distance, color=injmarkercolor, marker=injmarker, markersize=injmarkersize, alpha=injmarkeralpha)
 
     ax.set_xlabel('$\iota$ [$^\circ$]')
     ax.set_ylabel('$D$ [Mpc]')

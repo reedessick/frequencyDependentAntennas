@@ -70,7 +70,8 @@ if opts.args_are_degrees:
 if opts.verbose:
     print( 'loading setup from : '+setup )
 args, kwargs = utils.load_setup(setup)
-pole = kwargs['pole'] ### we use this outside of kwargs
+kwargs['pole'] = None ### we always use Earth-fixed coords, so we reset this
+detectors = args[-1]
 
 #-------------------------------------------------
 
@@ -78,8 +79,12 @@ if opts.verbose:
     print( 'setting up grid over psi, iota, distance, tac' )
 
 psiGRID = utils.psiGrid(opts.N_psi)
-t0GRID = utils.timeAtCoalescenceGrid(opts.N_tac, **kwargs)
+t0GRID = utils.timeAtCoalescenceGrid(kwargs['inj_timeAtCoalescence'], kwargs['inj_theta'], kwargs['inj_phi'], detectors[0], theta, phi, opts.N_tac, **kwargs)
 iotaGRID, distanceGRID = utils.iotaDistanceGrid(kwargs['inj_iota'], kwargs['inj_distanceMpc'], opts.N_iota, opts.N_distance, padding=opts.distance_padding_factor, **kwargs)
+
+### update kwargs to reflect shifted minT0, maxT0
+kwargs['minT0'] = np.min(t0GRID)
+kwargs['maxT0'] = np.max(t0GRID)
 
 #------------------------
 
