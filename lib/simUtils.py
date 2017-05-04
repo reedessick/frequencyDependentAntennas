@@ -64,8 +64,8 @@ class Detector(object):
 
     def __init__(self, name, ex, ey, r, L, PSD):
         self.name = name
-        self.ex = ex
-        self.ey = ey
+        self.ex = ex/np.sum(ex*ex)**0.5
+        self.ey = ey/np.sum(ey*ey)**0.5
         self.r = r
         self.L = L
         self.T = L/c
@@ -147,7 +147,7 @@ for name in ['aLIGO', 'aLIGO_O1', 'aLIGO_O2', 'aLIGO_O3', 'aLIGO_design', 'aPlus
         ),
     ]
 
-for name in ['aVirgo', 'aVirgo_sqz', 'aVirgo_wb', 'ET']:
+for name in ['aVirgo', 'aVirgo_sqz', 'aVirgo_wb']:
     known_detectors += [
         Detector(
             name = "V-"+name,
@@ -158,7 +158,33 @@ for name in ['aVirgo', 'aVirgo_sqz', 'aVirgo_wb', 'ET']:
             PSD = known_psds[name],
         ),
     ]
-
+for name in ['ET']:
+    known_detectors += [
+        Detector(
+            name = "ET1-"+name,
+            ex = np.array((-0.70045821479, +0.20848948619, +0.68256166277)),
+            ey = np.array((-0.39681482542, -0.73500471881, +0.54982366052)),
+            r = np.array((4.54637409900, 0.842989697626, 4.37857696241))*1e6/c,
+            L = 1e4,
+            PSD = known_psds[name],
+        ),
+        Detector(
+            name = "ET2-"+name,
+            ex = np.array((0.30364338937, -0.94349420500, -0.13273800225)),
+            ey = np.array((0.70045821479, -0.20848948619, -0.68256166277)),
+            r = np.array((4.53936951685, 0.845074592488, 4.38540257904))*1e6/c,
+            L = 1e4,
+            PSD = known_psds[name],
+        ),
+        Detector(
+            name = "ET3-"+name,
+            ex = np.array((+0.39681482542, 0.73500471881, -0.54982366052)),
+            ey = np.array((-0.30364338937, 0.94349420500, +0.13273800225)),
+            r = np.array((4.54240595075, 0.835639650438, 4.38407519902))*1e6/c,
+            L = 1e4,
+            PSD = known_psds[name],
+        ),
+    ]
 known_detectors = dict((detector.name, detector) for detector in known_detectors)
 
 #-------------------------------------------------
