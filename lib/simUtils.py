@@ -33,20 +33,26 @@ class PSD(object):
         return np.interp(freqs, self.freqs, self.vals)
 
 #------------------------
-### define common PSDs
-aLIGO_design = PSD(
-    psds.aLIGO_design['freqs'], 
-    psds.aLIGO_design['vals'],
-)
-aVirgo_design = PSD(
-    psds.aVirgo_design['freqs'], 
-    psds.aVirgo_design['vals'],
-)
+### defiine common PSDs
 
-known_psds = {
-    'aLIGO' : aLIGO_design,
-    'aVirgo' : aVirgo_design,
-}
+known_psds = dict((name, PSD(psd['freqs'], psd['vals'])) for name, psd in \
+    [
+        ('aLIGO', psds.aLIGO),
+        ('aLIGO_O1', psds.aLIGO_O1),
+        ('aLIGO_O2', psds.aLIGO_O2),
+        ('aLIGO_O3', psds.aLIGO_O3),
+        ('aLIGO_design', psds.aLIGO_design), 
+        ('aPlus', psds.aPlus),
+        ('aPlus_sqzonly', psds.aPlus_sqzonly),
+        ('aVirgo', psds.aVirgo),
+        ('aVirgo_sqz', psds.aVirgo_sqz),
+        ('aVirgo_wb', psds.aVirgo_wb),
+        ('CE', psds.CE),
+        ('CE_wb', psds.CE_wb),
+        ('ET', psds.ET),
+        ('Voyager', psds.Voyager),
+    ]
+)
 
 #-------------------------------------------------
 
@@ -102,58 +108,58 @@ class Detector(object):
 
 #------------------------
 ### define common detectors
-LLO = Detector(
-    name = "L",
-    ex = np.array((-0.9546, -0.1416, -0.2622)),
-    ey = np.array((+0.2977, -0.4879, -0.8205)),
-    r = np.array((-0.074276, -5.496284, +3.224257))*1e6/c,
-    L = 4e3,
-    PSD = aLIGO_design,
-)
 
-LLO_long = Detector(
-    name = "L",
-    ex = np.array((-0.9546, -0.1416, -0.2622)),
-    ey = np.array((+0.2977, -0.4879, -0.8205)),
-    r = np.array((-0.074276, -5.496284, +3.224257))*1e6/c,
-    L = 4e4,
-    PSD = aLIGO_design,
-)
+known_detectors = []
 
-LHO = Detector(
-    name = "H",
-    ex = np.array((-0.2239, +0.7998, +0.5569)),
-    ey = np.array((-0.9140, +0.0261, -0.4049)),
-    r = np.array((-2.161415, -3.834695, +4.600350))*1e6/c,
-    L = 4e3,
-    PSD = aLIGO_design,
-)
+for name in ['aLIGO', 'aLIGO_O1', 'aLIGO_O2', 'aLIGO_O3', 'aLIGO_design', 'aPlus', 'aPlus_sqzonly', 'CE', 'CE_wb', 'Voyager']:
+    known_detectors += [
+        Detector(
+            name = "L-"+name,
+            ex = np.array((-0.9546, -0.1416, -0.2622)),
+            ey = np.array((+0.2977, -0.4879, -0.8205)),
+            r = np.array((-0.074276, -5.496284, +3.224257))*1e6/c,
+            L = 4e3,
+            PSD = known_psds[name],
+        ),
+        Detector(
+            name = "Llong-"+name,
+            ex = np.array((-0.9546, -0.1416, -0.2622)),
+            ey = np.array((+0.2977, -0.4879, -0.8205)),
+            r = np.array((-0.074276, -5.496284, +3.224257))*1e6/c,
+            L = 4e4,
+            PSD = known_psds[name],
+        ),
+        Detector(
+            name = "H-"+name,
+            ex = np.array((-0.2239, +0.7998, +0.5569)),
+            ey = np.array((-0.9140, +0.0261, -0.4049)),
+            r = np.array((-2.161415, -3.834695, +4.600350))*1e6/c,
+            L = 4e3,
+            PSD = known_psds[name],
+        ),
+        Detector(
+            name = "Hlong-"+name,
+            ex = np.array((-0.2239, +0.7998, +0.5569)),
+            ey = np.array((-0.9140, +0.0261, -0.4049)),
+            r = np.array((-2.161415, -3.834695, +4.600350))*1e6/c,
+            L = 4e4,
+            PSD = known_psds[name],
+        ),
+    ]
 
-LHO_long = Detector(
-    name = "H",
-    ex = np.array((-0.2239, +0.7998, +0.5569)),
-    ey = np.array((-0.9140, +0.0261, -0.4049)),
-    r = np.array((-2.161415, -3.834695, +4.600350))*1e6/c,
-    L = 4e4,
-    PSD = aLIGO_design,
-)
+for name in ['aVirgo', 'aVirgo_sqz', 'aVirgo_wb', 'ET']:
+    known_detectors += [
+        Detector(
+            name = "V-"+name,
+            ex = np.array((-0.7005, +0.2085, +0.6826)),
+            ey = np.array((-0.0538, -0.9691, +0.2408)),
+            r = np.array((+4.546374, +0.842990, +4.378577))*1e6/c,
+            L = 3e3,
+            PSD = known_psds[name],
+        ),
+    ]
 
-Virgo = Detector(
-    name = "V",
-    ex = np.array((-0.7005, +0.2085, +0.6826)),
-    ey = np.array((-0.0538, -0.9691, +0.2408)),
-    r = np.array((+4.546374, +0.842990, +4.378577))*1e6/c,
-    L = 3e3,
-    PSD = aVirgo_design,
-)
-
-known_detectors = {
-    'H' : LHO,
-    'Hlong' : LHO_long,
-    'L' : LLO,
-    'Llong' : LLO_long,
-    'V' : Virgo,
-}
+known_detectors = dict((detector.name, detector) for detector in known_detectors)
 
 #-------------------------------------------------
 
