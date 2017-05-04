@@ -334,7 +334,7 @@ dag_obj.close()
 #------------------------
 
 if opts.submit:
-    cmd = 'condor_submit_dag %d'%dag
+    cmd = 'condor_submit_dag %s'%dag
     if opts.verbose:
         print( '    '+cmd )
     sp.Popen(cmd.split()).wait()

@@ -14,6 +14,7 @@ import simUtils as utils
 
 import matplotlib
 matplotlib.use("Agg")
+from matplotlib import cm
 from matplotlib import pyplot as plt
 plt.rcParams.update({
     'text.usetex':True,
@@ -75,6 +76,9 @@ parser.add_option('', '--results-theta-phi', default=False,
 
 parser.add_option('', '--results-iota-distance', default=False,
     help='path to txt containing the results of the calculation for p(iota,distance). Will only plot if supplied')
+
+parser.add_option('', '--linear-prob', default=False, action='store_true',
+    help='use linear probability instead of lnprob')
 
 parser.add_option('', '--min-lnprob', default=None, type='float',
     help='the minimum lnprob plotted in skymap scatter')
@@ -143,6 +147,12 @@ if opts.args_are_degrees:
     opts.sigma_theta *= deg2rad
 
 theta, phi, psi, iota, distance, tac = utils.symmetries(theta, phi, psi, iota, distance, tac)
+
+if opts.linear_prob:
+    if opts.max_lnprob!=None:
+        opts.max_lnprob = np.exp(opts.max_lnprob)
+    if opts.min_lnprob!=None:
+        opts.min_lnprob = np.exp(opts.min_lnprob)
 
 #-------------------------------------------------
 
@@ -217,6 +227,10 @@ if opts.results_theta_phi:
     samples = np.genfromtxt(opts.results_theta_phi, names=True)
     samples['phi'][samples['phi']>np.pi] -= 2*np.pi
 
+    if opts.linear_prob:
+        samples['lnprob'] = np.exp(samples['lnprob'])
+        samples['lnprob'] /= np.sum(samples['lnprob'])
+
     ### setup colors    
     mappable = cm.ScalarMappable(
         norm=plt.Normalize(
@@ -237,20 +251,55 @@ if opts.results_theta_phi:
         samples['phi'],
         0.5*np.pi - samples['theta'],
         color=color,
-        alpha=opts.gridmarkeralpha,
+        alpha=gridmarkeralpha,
         marker=gridmarker,
-        s=opts.gridmarkersize,
+        s=gridmarkersize,
     )
     ax.plot(phi - 2*np.pi*(phi>np.pi), 0.5*np.pi-theta, color=injmarkercolor, marker=injmarker, markersize=injmarkersize, alpha=injmarkeralpha)
 
     ### decorate
     cb = plt.colorbar(mappable, orientation='horizontal', shrink=0.8, pad=0.05)
-    cb.set_label('$\ln p(\\theta,\phi|\mathrm{data})$')
+    if opts.linear_prob:
+        cb.set_label('$p(\\theta,\phi|\mathrm{data})$')
+    else:
+        cb.set_label('$\ln p(\\theta,\phi|\mathrm{data})$')
 
     ax.grid(True, which='both')
 
     ### save
     figname = "%s/localize-grid_results-ThetaPhi%s.png"%(opts.output_dir, opts.tag)
+    if opts.verbose:
+        print( '    saving : '+figname )
+    fig.savefig(figname)
+    plt.close(fig)
+
+    ### plot in LOS
+    thetaGRID_los, phiGRID_los = utils.ThetaPhi2LineOfSight(samples['theta'], samples['phi'], pole=pole)
+    theta_los, phi_los = utils.ThetaPhi2LineOfSight(theta, phi, pole=pole)
+
+    fig = plt.figure()
+    ax = fig.add_axes(axpos, projection='mollweide')
+
+    ax.scatter(
+        phiGRID_los - 2*np.pi*(phiGRID_los>np.pi), 
+        0.5*np.pi-thetaGRID_los, 
+        marker=gridmarker, 
+        s=gridmarkersize, 
+        color=color, 
+        alpha=gridmarkeralpha,
+    )
+    ax.plot(phi_los - 2*np.pi*(phi_los>np.pi), 0.5*np.pi-theta_los, color=injmarkercolor, marker=injmarker, markersize=injmarkersize, alpha=injmarkeralpha)
+
+    ### decorate
+    cb = plt.colorbar(mappable, orientation='horizontal', shrink=0.8, pad=0.05)
+    if opts.linear_prob:
+        cb.set_label('$p(\\theta,\phi|\mathrm{data})$')
+    else:
+        cb.set_label('$\ln p(\\theta,\phi|\mathrm{data})$')
+
+    ax.grid(True, which='both')
+
+    figname = "%s/localize-grid_results-ThetaPhi-%s%s.png"%(opts.output_dir, ''.join(opts.line_of_sight), opts.tag)
     if opts.verbose:
         print( '    saving : '+figname )
     fig.savefig(figname)
@@ -264,6 +313,10 @@ if opts.results_iota_distance:
 
     ### read in samples
     samples = np.genfromtxt(opts.results_iota_distance, names=True)
+
+    if opts.linear_prob:
+        samples['lnprob'] = np.exp(samples['lnprob'])
+        samples['lnprob'] /= np.sum(samples['lnprob'])
 
     ### setup colors    
     mappable = cm.ScalarMappable(
@@ -285,15 +338,18 @@ if opts.results_iota_distance:
         samples['iota']*180/np.pi,
         samples['distanceMpc'], ### plot declination, not theta
         color=color,
-        alpha=opts.gridmarkeralpha,
+        alpha=gridmarkeralpha,
         marker=gridmarker,
-        s=opts.gridmarkersize,
+        s=gridmarkersize,
     )
     ax.plot(iota*180/np.pi, distance, color=injmarkercolor, marker=injmarker, markersize=injmarkersize, alpha=injmarkeralpha)
 
     ### decorate
     cb = plt.colorbar(mappable, orientation='vertical', shrink=0.8, pad=0.05)
-    cb.set_label('$\ln p(\iota,D|\mathrm{data})$')
+    if opts.linear_prob:
+        cb.set_label('$p(\iota,D|\mathrm{data})$')
+    else:
+        cb.set_label('$\ln p(\iota,D|\mathrm{data})$')
 
     ax.grid(True, which='both')
 

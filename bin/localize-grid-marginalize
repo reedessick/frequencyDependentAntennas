@@ -52,14 +52,17 @@ for txt in args:
     if opts.verbose:
         print( '    '+txt )
 
-    samples = np.genfromtxt(txt, names=True)
+    try:
+        samples = np.genfromtxt(txt, names=True)
+    except IndexError: ### empty file
+        continue
     N += len(samples)
 
     ### iterate over samples and add posterior to each grid point
     for lnL, lnP, theta, phi, iota, distance in \
         zip(
-            samples['lnLikelihood'], 
-            samples['lnPrior'], 
+            samples['lnlikelihood'], 
+            samples['lnprior'], 
             samples['theta'], 
             samples['phi'], 
             samples['iota'], 
@@ -78,13 +81,13 @@ template = "%.9f %.9f %.9f"
 for header, data, out in \
     [
         ('lnprob theta phi', theta_phi, "%s/localize-grid-marginalize_ThetaPhi%s.txt"%(opts.output_dir, opts.tag)),
-        ('lnprob iota distanceMpc', theta_phi, "%s/localize-grid-marginalize_ThetaPhi%s.txt"%(opts.output_dir, opts.tag)),
+        ('lnprob iota distanceMpc', iota_distance, "%s/localize-grid-marginalize_IotaDistance%s.txt"%(opts.output_dir, opts.tag)),
     ]:
     
     if opts.verbose:
         print( 'writing : '+out )
     out_obj = open(out, 'w')
     print >> out_obj, header
-    for (x, y), lnprob in data.items():
-        print >>out_obj, template%(lnprob, x, y)
+    for (x, y), prob in data.items():
+        print >>out_obj, template%(np.log(prob)-np.log(N), x, y) ### logN normalizes over sample points
     out_obj.close()
