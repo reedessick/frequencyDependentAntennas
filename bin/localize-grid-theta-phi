@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-usage = "localize-theta-phi [--options] setup.pkl theta phi iota distance"
+usage = "localize-theta-phi [--options] setup.pkl theta phi"
 description = """\
 a quick sampler over extrinsic parameters to study the effects of frequency dependent antenna patterns on localization. 
 Angles specified as arguments should be in radians, unless --args-are-degrees is provided. 
