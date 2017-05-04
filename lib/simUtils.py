@@ -460,6 +460,8 @@ def lineOfSightGrid( theta, phi, Ntheta, Nphi, sigmaTheta, pole=None ):
     phiGRID = np.linspace(0, 2*np.pi, Nphi+1)[:-1]
 
     # theta is a bit ad hoc, but should be a gaussian centered on the injected location
+    if Ntheta%2:
+        Ntheta += 1
     thetaGRID = erfinv(np.linspace(0,1,Ntheta/2+1)[:-1])
     thetaGRID = theta_los + sigmaTheta*np.concatenate((-thetaGRID[::-1], thetaGRID[1:]))
     thetaGRID = thetaGRID[(thetaGRID>=0)*(thetaGRID<=np.pi)]
@@ -467,6 +469,8 @@ def lineOfSightGrid( theta, phi, Ntheta, Nphi, sigmaTheta, pole=None ):
     ### rotate back to Earth-fixed
     thetaGRID, phiGRID = np.meshgrid(thetaGRID, phiGRID)
     thetaGRID, phiGRID = lineOfSight2ThetaPhi(thetaGRID.flatten(), phiGRID.flatten(), pole=pole)
+
+    phiGRID[phiGRID<0] += 2*np.pi ### we want these to be positive
 
     return thetaGRID, phiGRID
 
