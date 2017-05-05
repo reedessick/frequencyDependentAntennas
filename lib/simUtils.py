@@ -212,7 +212,7 @@ def h2pol( h, iota, distance=1. ):
 
 #-------------------------------------------------
 
-def snr( freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False ):
+def snr( freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False, normalizeTemplate=True ):
     """
     computes the SNR of this template against this data
     does NOT maximize over the phase at coalescence
@@ -220,9 +220,14 @@ def snr( freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False ):
     template = detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=zeroFreq)
     PSD = detector.PSD(freqs)
     deltaF = freqs[1]-freqs[0]
-    return np.sum(deltaF*np.conjugate(data)*template/PSD).real / np.sum(deltaF*np.conjugate(template)*template/PSD).real**0.5
 
-def cumsum_snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False ):
+    ans = np.sum(deltaF*np.conjugate(data)*template/PSD).real 
+    if normalizeTemplate:
+        ans /= np.sum(deltaF*np.conjugate(template)*template/PSD).real**0.5
+
+    return ans
+
+def cumsum_snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False, normalizeTemplate=True ):
     """
     returns the cumulative sum of the snr as a function of frequency
     does NOT maximize over the phase at coalescence
@@ -230,7 +235,12 @@ def cumsum_snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False 
     template = detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=zeroFreq)
     PSD = detector.PSD(freqs)
     deltaF = freqs[1]-freqs[0]
-    return np.cumsum(deltaF*np.conjugate(data)*template/PSD).real / np.sum(deltaF*np.conjugate(template)*template/PSD).real**0.5
+
+    ans = np.cumsum(deltaF*np.conjugate(data)*template/PSD).real 
+    if normalizeTemplate:
+        ans /= np.sum(deltaF*np.conjugate(template)*template/PSD).real**0.5
+
+    return ans
 
 #------------------------
 
@@ -346,6 +356,20 @@ def ThetaPhi2LineOfSight( theta, phi, pole=None ):
 
 #------------------------
 
+def lnlikelihood( freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False ):
+    """
+    returns the likelihood associated with hpf, hxf
+    this could be accomplished with only delegations to snr(), but we want to avoid re-computing antenna patterns as much as possible
+    """
+    template = detector.project(freqs, hpf, hxf, theta, phi, psi, zeroFreq=zeroFreq)
+    conjugate = np.conjugate(template)
+
+    PSD = detector.PSD(freqs)
+    deltaF = freqs[1]-freqs[0]
+
+    return np.sum(deltaF*(data*conjugate - 0.5*conjugate*template)/PSD).real 
+
+
 def lnLikelihood( (theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=False, pole=None, verbose=False, **kwargs ):
     """
     log(likelihood) of this template against this data
@@ -358,12 +382,15 @@ def lnLikelihood( (theta, phi, psi, iota, distance, t0), freqs, data, h, detecto
         theta, phi = lineOfSight2ThetaPhi(theta, phi, pole)
 
     hpf, hxf = h2pol(h2hAtT(freqs, h, t0), iota, distance=distance)
-    snrs = np.array([snr(freqs, detector, datum, hpf, hxf, theta, phi, psi, zeroFreq=zeroFreq) for detector, datum in zip(detectors, data)])
+
     if verbose: ### print the SNRs
-        for snr2, detector in zip(snrs, detectors):
-            print detector.name, snr2
+        snrs = np.array([snr(freqs, detector, datum, hpf, hxf, theta, phi, psi, zeroFreq=zeroFreq) for detector, datum in zip(detectors, data)])
+        for detector, datum in zip(detectors, data):
+            print detector.name, snr(freqs, detector, datum, hpf, hxf, theta, phi, psi, zeroFreq=zeroFreq)
         print ""
-    return np.sum(0.5*snrs**2)
+
+    ### compute likelihood as a sum over single detector values
+    return np.sum( lnlikelihood(freqs, detector, datum, hpf, hxf, theta, phi, psi, zeroFreq=zeroFreq) for detector, datum in zip(detectors, data) )
 
 def likelihood( (theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=False, pole=None, **kwargs ):
     return np.exp(lnLikelihood((theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=zeroFreq, pole=pole))
