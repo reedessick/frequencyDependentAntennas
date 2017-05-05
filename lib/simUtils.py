@@ -356,7 +356,7 @@ def ThetaPhi2LineOfSight( theta, phi, pole=None ):
 
 #------------------------
 
-def lnlikelihood( freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False ):
+def __lnlikelihood__( freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False ):
     """
     returns the likelihood associated with hpf, hxf
     this could be accomplished with only delegations to snr(), but we want to avoid re-computing antenna patterns as much as possible
@@ -390,7 +390,7 @@ def lnLikelihood( (theta, phi, psi, iota, distance, t0), freqs, data, h, detecto
         print ""
 
     ### compute likelihood as a sum over single detector values
-    return np.sum( lnlikelihood(freqs, detector, datum, hpf, hxf, theta, phi, psi, zeroFreq=zeroFreq) for detector, datum in zip(detectors, data) )
+    return np.sum( __lnlikelihood__(freqs, detector, datum, hpf, hxf, theta, phi, psi, zeroFreq=zeroFreq) for detector, datum in zip(detectors, data) )
 
 def likelihood( (theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=False, pole=None, **kwargs ):
     return np.exp(lnLikelihood((theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=zeroFreq, pole=pole))
