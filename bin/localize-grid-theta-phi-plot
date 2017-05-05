@@ -1,0 +1,166 @@
+#!/usr/bin/env python
+
+usage = "localize-grid-theta-phi-plot [--options] txt"
+description = "generate plots for a single localize-grid-theta-phi job"
+author = "Reed Essick"
+
+#-------------------------------------------------
+
+import os
+
+import numpy as np
+
+from collections import defaultdict
+
+import matplotlib
+matplotlib.use("Agg")
+from matplotlib import cm
+from matplotlib import pyplot as plt
+plt.rcParams.update({
+    'text.usetex':True,
+    'font.family': 'serif',
+#    'font.serif': ['Computer Modern'],
+#    "axes.grid": True,
+#    "axes.axisbelow": False,
+#    "axes.formatter.limits": (-3, 4),
+    "axes.labelsize": 20,
+    "axes.titlesize": 22,
+    "figure.subplot.bottom": 0.10,
+    "figure.subplot.left": 0.10,
+    "figure.subplot.right": 0.95,
+    "figure.subplot.top": 0.93,
+    "grid.color": 'gray',
+#    "image.aspect": 'auto',
+#    "image.interpolation": 'nearest',
+#    "image.origin": 'lower',
+    "xtick.labelsize": 15,
+    "ytick.labelsize": 15,
+})
+
+from optparse import OptionParser
+
+#-------------------------------------------------
+
+axpos = [0.07, 0.05, 0.92, 0.90]
+
+gridmarker='o'
+gridmarkersize=1
+gridmarkercolor='k'
+gridmarkeralpha=0.5
+
+injmarker='x'
+injmarkersize=10
+injmarkercolor='r'
+injmarkeralpha=1.0
+
+#-------------------------------------------------
+
+parser = OptionParser(usage=usage, description=description)
+
+### output options
+
+parser.add_option('-v', '--verbose', default=False, action='store_true')
+
+parser.add_option('-o', '--output-dir', default='.', type='string')
+parser.add_option('-t', '--tag', default='', type='string')
+
+parser.add_option('', '--linear-prob', default=False, action='store_true',
+    help='use linear probability instead of lnprob')
+
+parser.add_option('', '--min-lnprob', default=None, type='float',
+    help='the minimum lnprob plotted in skymap scatter')
+parser.add_option('', '--max-lnprob', default=None, type='float',
+    help='the maximum lnprob plotted in skymap scatter')
+
+parser.add_option('', '--color-map', default="OrRd", type='string',
+    help='used to color points in skymap scatter plot')
+
+opts, args = parser.parse_args()
+
+if not os.path.exists(opts.output_dir):
+    os.makedirs(opts.output_dir)
+
+if opts.tag:
+    opts.tag = "_"+opts.tag
+
+#-------------------------------------------------
+
+if opts.verbose:
+    print( "plotting p(iota, distance)" )
+
+### read in samples
+samples = np.genfromtxt(args[0], names=True)
+N = len(samples)
+
+rad2deg = 180/np.pi
+theta = samples['theta'][0]*rad2deg
+phi = samples['phi'][0]*rad2deg
+
+### marginalize!
+iotaDistance = defaultdict( float )
+for iota, distance, lnL in zip(samples['iota'], samples['distanceMpc'], samples['lnlikelihood']):
+    iotaDistance[(iota, distance)] += np.exp(lnL)
+
+samples = {'iota':[], 'distanceMpc':[], 'lnprob':[]}
+for (iota, distance), prob in iotaDistance.items():
+    samples['iota'].append( iota )
+    samples['distanceMpc'].append( distance )
+    samples['lnprob'].append( np.log(prob) - np.log(N) )
+samples['iota'] = np.array(samples['iota'])
+samples['distanceMpc'] = np.array(samples['distanceMpc'])
+samples['lnprob'] = np.array(samples['lnprob'])
+
+#------------------------
+
+if opts.linear_prob:
+    samples['lnprob'] = np.exp(samples['lnprob'])
+    samples['lnprob'] /= np.sum(samples['lnprob'])
+
+### setup colors    
+mappable = cm.ScalarMappable(
+    norm=plt.Normalize(
+        vmin=opts.min_lnprob if opts.min_lnprob!=None else np.min(samples['lnprob'][samples['lnprob']>-np.infty]),
+        vmax=opts.max_lnprob if opts.max_lnprob!=None else np.max(samples['lnprob'][samples['lnprob']<np.infty]),
+    ),
+    cmap=plt.get_cmap(opts.color_map),
+)
+mappable.set_array(samples['lnprob'])
+
+color = mappable.to_rgba(samples['lnprob'])
+
+### plot
+fig = plt.figure()
+ax = fig.gca()
+
+ax.set_title('$\\theta=%.3f^\circ$  $\phi=%.3f^\circ$'%(theta, phi))
+
+ax.scatter(
+    samples['iota']*180/np.pi,
+    samples['distanceMpc'], ### plot declination, not theta
+    color=color,
+    alpha=gridmarkeralpha,
+    marker=gridmarker,
+    s=gridmarkersize,
+)
+
+### decorate
+cb = plt.colorbar(mappable, orientation='vertical', shrink=0.8, pad=0.05)
+if opts.linear_prob:
+    cb.set_label('$p(\iota,D|\\theta,\phi,\mathrm{data})$')
+else:
+    cb.set_label('$\ln p(\iota,D|\\theta,\phi,\mathrm{data})$')
+
+ax.grid(True, which='both')
+
+ax.set_xlabel('$\iota$ [$^\circ$]')
+ax.set_ylabel('$D$ [Mpc]')
+
+ax.set_xlim(xmin=-1, xmax=181)
+ax.set_ylim(ymin=np.min(samples['distanceMpc']), ymax=np.max(samples['distanceMpc']))
+
+### save
+figname = "%s/localize-grid-theta-phi_results-IotaDistance%s.png"%(opts.output_dir, opts.tag)
+if opts.verbose:
+    print( '    saving : '+figname )
+fig.savefig(figname)
+plt.close(fig)

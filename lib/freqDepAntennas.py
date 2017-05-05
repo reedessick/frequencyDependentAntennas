@@ -126,7 +126,7 @@ def antenna_response( theta, phi, psi, ex, ey, T=1., freqs=0. ):
     n = np.array([sinTheta*cosPhi, sinTheta*sinPhi, cosTheta])
 
     ### compute detector matrix
-    freqsT = 2j*np.pi*freqs*T
+    freqsT = -2j*np.pi*freqs*T ### this convention should match what is in LAL
 
     # factor of 1/2 is for normalization
     dV_xx = 0.5 * __D__(freqsT, np.sum(np.outer(ex, np.ones_like(theta))*n, axis=0))

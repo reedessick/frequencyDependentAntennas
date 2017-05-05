@@ -54,7 +54,7 @@ for txt in args:
 
     try:
         samples = np.genfromtxt(txt, names=True)
-    except IndexError: ### empty file
+    except (ValueError, IndexError) as e: ### empty file
         continue
     N += len(samples)
 

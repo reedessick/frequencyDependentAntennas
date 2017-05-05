@@ -46,7 +46,7 @@ from optparse import OptionParser
 
 known_detectors = utils.known_detectors
 
-axpos = [0.07, 0.05, 0.92, 0.90]
+axpos = [0.07, 0.08, 0.92, 0.90]
 
 #-------------------------------------------------
 
@@ -84,9 +84,39 @@ freqs = [float(_) for _ in args]
 ### define detectors
 detectors = [known_detectors[ifo] for ifo in opts.instrument]
 
+### plot PSD's
+fig = plt.figure()
+ax = fig.gca()
+
+for detector in detectors:
+    ax.plot(detector.PSD.freqs, detector.PSD.vals**0.5, label=detector.name)
+
+ax.set_xlabel('$f$ [Hz]')
+ax.set_ylabel('ASD')
+
+ax.grid(True, which='both')
+
+ax.set_xscale('log')
+ax.set_yscale('log')
+
+ylim = ax.get_ylim()
+for freq in freqs:
+    ax.plot([freq]*2, ylim, 'k-', alpha=0.5)
+
+ax.legend(loc='best')
+
+figname='%s/network-PSD%s.png'%(opts.output_dir, opts.tag)
+if opts.verbose:
+    print( '    saving : '+figname )
+fig.savefig(figname)
+plt.close(fig)
+
 ### define pixelization
 npix = hp.nside2npix(opts.nside)
 theta, phi = hp.pix2ang(opts.nside, np.arange(npix))
+
+### compute overhead angles
+overheads = dict( (detector.name, (np.arccos(detector.ez[2]), np.arctan2(detector.ez[1], detector.ez[0]))) for detector in detectors )
 
 for ind, freq in enumerate(freqs):
 
@@ -102,8 +132,10 @@ for ind, freq in enumerate(freqs):
         fp = fp.flatten() ### map into a !D array for convenience
         fx = fx.flatten() 
 
-        rho_p += np.abs(fp)**2/detector.PSD(freq)
-        rho_x += np.abs(fx)**2/detector.PSD(freq)
+        psd = detector.PSD(freq)
+
+        rho_p += np.abs(fp)**2/psd
+        rho_x += np.abs(fx)**2/psd
 
     ### plot responses
     if opts.verbose:
@@ -127,6 +159,12 @@ for ind, freq in enumerate(freqs):
 
         cb = plt.colorbar(orientation='horizontal', shrink=0.8, pad=0.05)
         cb.set_label(label)
+
+        for name, (t, p) in overheads.items():
+            p = p-2*np.pi*(p>np.pi)
+            t = 0.5*np.pi-t
+            ax.plot(p, t, marker='+', color='k', markersize=10)
+            ax.text(p, t, name, ha='left', va='top')
 
         figname = "%s/network-%s_%04d%s.png"%(opts.output_dir, tag, ind, opts.tag)
         if opts.verbose:

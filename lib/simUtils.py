@@ -66,6 +66,10 @@ class Detector(object):
         self.name = name
         self.ex = ex/np.sum(ex*ex)**0.5
         self.ey = ey/np.sum(ey*ey)**0.5
+        self.ez = np.array([self.ex[1]*self.ey[2]-self.ex[2]*self.ey[1],  ### overhead 
+                            self.ex[2]*self.ey[0]-self.ex[0]*self.ey[2], 
+                            self.ex[0]*self.ey[1]-self.ex[1]*self.ey[0]])
+        self.ez /= np.sum(self.ez*self.ez)**0.5
         self.r = r
         self.L = L
         self.T = L/c
@@ -111,7 +115,7 @@ class Detector(object):
 
 known_detectors = []
 
-for name in ['aLIGO', 'aLIGO_O1', 'aLIGO_O2', 'aLIGO_O3', 'aLIGO_design', 'aPlus', 'aPlus_sqzonly', 'CE', 'CE_wb', 'Voyager']:
+for name in ['aLIGO', 'aLIGO_O1', 'aLIGO_O2', 'aLIGO_O3', 'aLIGO_design', 'aPlus', 'aPlus_sqzonly']:
     known_detectors += [
         Detector(
             name = "L-"+name,
@@ -122,19 +126,23 @@ for name in ['aLIGO', 'aLIGO_O1', 'aLIGO_O2', 'aLIGO_O3', 'aLIGO_design', 'aPlus
             PSD = known_psds[name],
         ),
         Detector(
-            name = "Llong-"+name,
-            ex = np.array((-0.9546, -0.1416, -0.2622)),
-            ey = np.array((+0.2977, -0.4879, -0.8205)),
-            r = np.array((-0.074276, -5.496284, +3.224257))*1e6/c,
-            L = 4e4,
-            PSD = known_psds[name],
-        ),
-        Detector(
             name = "H-"+name,
             ex = np.array((-0.2239, +0.7998, +0.5569)),
             ey = np.array((-0.9140, +0.0261, -0.4049)),
             r = np.array((-2.161415, -3.834695, +4.600350))*1e6/c,
             L = 4e3,
+            PSD = known_psds[name],
+        ),
+    ]
+
+for name in ['CE', 'CE_wb', 'Voyager']:
+    known_detectors += [
+        Detector(
+            name = "Llong-"+name,
+            ex = np.array((-0.9546, -0.1416, -0.2622)),
+            ey = np.array((+0.2977, -0.4879, -0.8205)),
+            r = np.array((-0.074276, -5.496284, +3.224257))*1e6/c,
+            L = 4e4,
             PSD = known_psds[name],
         ),
         Detector(
@@ -531,15 +539,15 @@ def iotaDistanceGrid( iota, distance, Niota, Ndistance, minDistance=1, maxDistan
     ### maximum allowed "scaling constant" for placing distance grid
     ### take into account the detectability (malmquist prior -> gets rid of a lot of otherwise very densely sampled parameter-space
     cosIota2 = np.cos(iota)**2 
-    dM3 = ( (padding*distance)**2 / ((1+cosIota2)**2+cosIota2) )**(3./2)
+    dM3 = ( (padding*distance)**2 / (0.25*(1+cosIota2)**2+cosIota2) )**(3./2)
 
     ### minimum allowed "scaling constant" for distance grid
-    dm3 = (minDistance/5**0.5)**3
+    dm3 = (minDistance/2**0.5)**3
 
     do = np.outer(np.ones(Niota), np.linspace(dm3, dM3, Ndistance)**(1./3)) ### constants for scaling relation
 
     cosIota2GRID = cosIotaGRID**2
-    distanceGRID = do*((1+cosIota2GRID)**2 + cosIota2GRID)**0.5
+    distanceGRID = do*(0.25*(1+cosIota2GRID)**2 + cosIota2GRID)**0.5
 
     distanceGRID = distanceGRID.flatten()
     truth = (distanceGRID>=minDistance)*(distanceGRID<=maxDistance) ### exclude points outside of prior bounds
