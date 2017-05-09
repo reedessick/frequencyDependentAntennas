@@ -46,16 +46,6 @@ axpos = [0.07, 0.05, 0.92, 0.90]
 known_detectors = utils.known_detectors
 Ndim = 6
 
-gridmarker='o'
-gridmarkersize=1
-gridmarkercolor='k'
-gridmarkeralpha=0.5
-
-injmarker='x'
-injmarkersize=10
-injmarkercolor='r'
-injmarkeralpha=1.0
-
 #-------------------------------------------------
 
 parser = OptionParser(usage=usage, description=description)
@@ -87,6 +77,16 @@ parser.add_option('', '--max-lnprob', default=None, type='float',
 
 parser.add_option('', '--color-map', default="OrRd", type='string',
     help='used to color points in skymap scatter plot')
+
+parser.add_option('', '--gridmarker', default='o', type='string')
+parser.add_option('', '--gridmarkercolor', default='k', type='string')
+parser.add_option('', '--gridmarkersize', default=1, type='float')
+parser.add_option('', '--gridmarkeralpha', default=0.5, type='float')
+
+parser.add_option('', '--injmarker', default='x', type='string')
+parser.add_option('', '--injmarkercolor', default='r', type='string')
+parser.add_option('', '--injmarkersize', default=10, type='float')
+parser.add_option('', '--injmarkeralpha', default=1.0, type='float')
 
 ### coordinate systems
 
@@ -167,8 +167,8 @@ if opts.grid_placement:
     fig = plt.figure()
     ax = fig.add_axes(axpos, projection='mollweide')
 
-    ax.scatter(phiGRID - 2*np.pi*(phiGRID>np.pi), 0.5*np.pi-thetaGRID, marker=gridmarker, s=gridmarkersize, color=gridmarkercolor, alpha=gridmarkeralpha)
-    ax.plot(phi - 2*np.pi*(phi>np.pi), 0.5*np.pi-theta, color=injmarkercolor, marker=injmarker, markersize=injmarkersize, alpha=injmarkeralpha)
+    ax.scatter(phiGRID - 2*np.pi*(phiGRID>np.pi), 0.5*np.pi-thetaGRID, marker=opts.gridmarker, s=opts.gridmarkersize, color=opts.gridmarkercolor, alpha=opts.gridmarkeralpha)
+    ax.plot(phi - 2*np.pi*(phi>np.pi), 0.5*np.pi-theta, color=opts.injmarkercolor, marker=opts.injmarker, markersize=opts.injmarkersize, alpha=opts.injmarkeralpha)
 
     ax.grid(True, which='both')
 
@@ -185,8 +185,8 @@ if opts.grid_placement:
     fig = plt.figure()
     ax = fig.add_axes(axpos, projection='mollweide')
 
-    ax.scatter(phiGRID_los - 2*np.pi*(phiGRID_los>np.pi), 0.5*np.pi-thetaGRID_los, marker=gridmarker, s=gridmarkersize, color=gridmarkercolor, alpha=gridmarkeralpha)
-    ax.plot(phi_los - 2*np.pi*(phi_los>np.pi), 0.5*np.pi-theta_los, color=injmarkercolor, marker=injmarker, markersize=injmarkersize, alpha=injmarkeralpha)
+    ax.scatter(phiGRID_los - 2*np.pi*(phiGRID_los>np.pi), 0.5*np.pi-thetaGRID_los, marker=opts.gridmarker, s=opts.gridmarkersize, color=opts.gridmarkercolor, alpha=opts.gridmarkeralpha)
+    ax.plot(phi_los - 2*np.pi*(phi_los>np.pi), 0.5*np.pi-theta_los, color=opts.injmarkercolor, marker=opts.injmarker, markersize=opts.injmarkersize, alpha=opts.injmarkeralpha)
 
     ax.grid(True, which='both')
 
@@ -201,8 +201,8 @@ if opts.grid_placement:
     fig = plt.figure()
     ax = fig.gca()
 
-    ax.scatter(iotaGRID*180/np.pi, distanceGRID, marker=gridmarker, s=gridmarkersize, color=gridmarkercolor, alpha=gridmarkeralpha)
-    ax.plot(iota*180/np.pi, distance, color=injmarkercolor, marker=injmarker, markersize=injmarkersize, alpha=injmarkeralpha)
+    ax.scatter(iotaGRID*180/np.pi, distanceGRID, marker=opts.gridmarker, s=opts.gridmarkersize, color=opts.gridmarkercolor, alpha=opts.gridmarkeralpha)
+    ax.plot(iota*180/np.pi, distance, color=opts.injmarkercolor, marker=opts.injmarker, markersize=opts.injmarkersize, alpha=opts.injmarkeralpha)
 
     ax.set_xlabel('$\iota$ [$^\circ$]')
     ax.set_ylabel('$D$ [Mpc]')
@@ -251,11 +251,11 @@ if opts.results_theta_phi:
         samples['phi'],
         0.5*np.pi - samples['theta'],
         color=color,
-        alpha=gridmarkeralpha,
-        marker=gridmarker,
-        s=gridmarkersize,
+        alpha=opts.gridmarkeralpha,
+        marker=opts.gridmarker,
+        s=opts.gridmarkersize,
     )
-    ax.plot(phi - 2*np.pi*(phi>np.pi), 0.5*np.pi-theta, color=injmarkercolor, marker=injmarker, markersize=injmarkersize, alpha=injmarkeralpha)
+    ax.plot(phi - 2*np.pi*(phi>np.pi), 0.5*np.pi-theta, color=opts.injmarkercolor, marker=opts.injmarker, markersize=opts.injmarkersize, alpha=opts.injmarkeralpha)
 
     ### decorate
     cb = plt.colorbar(mappable, orientation='horizontal', shrink=0.8, pad=0.05)
@@ -283,12 +283,12 @@ if opts.results_theta_phi:
     ax.scatter(
         phiGRID_los - 2*np.pi*(phiGRID_los>np.pi), 
         0.5*np.pi-thetaGRID_los, 
-        marker=gridmarker, 
-        s=gridmarkersize, 
+        marker=opts.gridmarker, 
+        s=opts.gridmarkersize, 
         color=color, 
-        alpha=gridmarkeralpha,
+        alpha=opts.gridmarkeralpha,
     )
-    ax.plot(phi_los - 2*np.pi*(phi_los>np.pi), 0.5*np.pi-theta_los, color=injmarkercolor, marker=injmarker, markersize=injmarkersize, alpha=injmarkeralpha)
+    ax.plot(phi_los - 2*np.pi*(phi_los>np.pi), 0.5*np.pi-theta_los, color=opts.injmarkercolor, marker=opts.injmarker, markersize=opts.injmarkersize, alpha=opts.injmarkeralpha)
 
     ### decorate
     cb = plt.colorbar(mappable, orientation='horizontal', shrink=0.8, pad=0.05)
@@ -338,11 +338,11 @@ if opts.results_iota_distance:
         samples['iota']*180/np.pi,
         samples['distanceMpc'], ### plot declination, not theta
         color=color,
-        alpha=gridmarkeralpha,
-        marker=gridmarker,
-        s=gridmarkersize,
+        alpha=opts.gridmarkeralpha,
+        marker=opts.gridmarker,
+        s=opts.gridmarkersize,
     )
-    ax.plot(iota*180/np.pi, distance, color=injmarkercolor, marker=injmarker, markersize=injmarkersize, alpha=injmarkeralpha)
+    ax.plot(iota*180/np.pi, distance, color=opts.injmarkercolor, marker=opts.injmarker, markersize=opts.injmarkersize, alpha=opts.injmarkeralpha)
 
     ### decorate
     cb = plt.colorbar(mappable, orientation='vertical', shrink=0.8, pad=0.05)
