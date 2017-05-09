@@ -221,7 +221,7 @@ def snr( freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False, norma
     PSD = detector.PSD(freqs)
     deltaF = freqs[1]-freqs[0]
 
-    ans = np.sum(deltaF*np.conjugate(data)*template/PSD).real 
+    ans = 2*np.sum(deltaF*np.conjugate(data)*template/PSD).real 
     if normalizeTemplate:
         ans /= np.sum(deltaF*np.conjugate(template)*template/PSD).real**0.5
 
@@ -236,7 +236,7 @@ def cumsum_snr(freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq=False,
     PSD = detector.PSD(freqs)
     deltaF = freqs[1]-freqs[0]
 
-    ans = np.cumsum(deltaF*np.conjugate(data)*template/PSD).real 
+    ans = 2*np.cumsum(deltaF*np.conjugate(data)*template/PSD).real 
     if normalizeTemplate:
         ans /= np.sum(deltaF*np.conjugate(template)*template/PSD).real**0.5
 
@@ -367,7 +367,7 @@ def __lnlikelihood__( freqs, detector, data, hpf, hxf, theta, phi, psi, zeroFreq
     PSD = detector.PSD(freqs)
     deltaF = freqs[1]-freqs[0]
 
-    return np.sum(deltaF*(data*conjugate - 0.5*conjugate*template)/PSD).real 
+    return 4*np.sum(deltaF*(data*conjugate - 0.5*conjugate*template)/PSD).real 
 
 
 def lnLikelihood( (theta, phi, psi, iota, distance, t0), freqs, data, h, detectors, zeroFreq=False, pole=None, verbose=False, **kwargs ):
