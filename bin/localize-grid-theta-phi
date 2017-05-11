@@ -32,6 +32,8 @@ parser.add_option('-V', '--Verbose', default=False, action='store_true')
 parser.add_option('', '--status-width', default=100, type='int',
     help='the width of the status bar printed if --Verbose is supplied. Default=100')
 
+parser.add_option('', '--verbose-likelihood', default=False, action='store_true')
+
 parser.add_option('-o', '--output-dir', default='.', type='string')
 parser.add_option('-t', '--tag', default='', type='string')
 
@@ -106,7 +108,7 @@ if opts.Verbose: ### print progress bar
         for t0 in t0GRID:
             for iota, distance in zip(iotaGRID, distanceGRID):
                 print >> out_obj, template%(
-                    utils.lnLikelihood((theta, phi, psi, iota, distance, t0), *args, **kwargs), 
+                    utils.lnLikelihood((theta, phi, psi, iota, distance, t0), *args, verbose=opts.verbose_likelihood, **kwargs), 
                     utils.lnPrior((theta, phi, psi, iota, distance, t0), **kwargs), 
                     theta, 
                     phi, 
@@ -132,7 +134,7 @@ else: ### just run "silently"
         for t0 in t0GRID:
             for iota, distance in zip(iotaGRID, distanceGRID):
                 print >> out_obj, template%(
-                    utils.lnLikelihood((theta, phi, psi, iota, distance, t0), *args, **kwargs),
+                    utils.lnLikelihood((theta, phi, psi, iota, distance, t0), *args, verbose=opts.verbose_likelihood, **kwargs),
                     utils.lnPrior((theta, phi, psi, iota, distance, t0), **kwargs),                           
                     theta,
                     phi,
