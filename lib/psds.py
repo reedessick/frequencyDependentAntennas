@@ -35,9 +35,11 @@ aVirgo_wb = path2dict(os.path.join(dirname, 'AdVirgo_wb.txt'))
 ### CE
 CE = path2dict(os.path.join(dirname, 'CE.txt'))
 CE_wb = path2dict(os.path.join(dirname, 'CE_wb.txt'))
+CE_bad = path2dict(os.path.join(dirname, 'CE_bad.txt'))
 
 ### ET
-ET = path2dict(os.path.join(dirname, 'ET_D.txt'))
+ET = path2dict(os.path.join(dirname, 'ET.txt'))
+ET_D = path2dict(os.path.join(dirname, 'ET_D.txt'))
 
 ### Voyager
 Voyager = path2dict(os.path.join(dirname, 'Voyager.txt'))
