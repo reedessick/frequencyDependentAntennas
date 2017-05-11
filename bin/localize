@@ -340,7 +340,7 @@ else:
         print( 'writing output to : %s'%opts.resume )
     file_obj = open(opts.resume, 'a') ### append onto existing file
 
-report = '%d %4.9f %1.9f %1.9f %1.9f %1.9f %6.9f %9.6f' ### used to report state
+report = '%d %4.9f %1.9f %1.9f %1.9f %1.9f %6.9f %.9e' ### used to report state
 
 if opts.verbose:
     print( 'running sampler' )

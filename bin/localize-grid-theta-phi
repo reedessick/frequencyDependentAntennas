@@ -96,7 +96,7 @@ if opts.verbose:
 out_obj = open(out, 'w')
 print >> out_obj, 'lnlikelihood lnprior theta phi psi iota distanceMpc timeAtCoalescence'
 
-template = "%.9f %.9f %.9f %.9f %.9f %.9f %.9f %.9f" ### used to format output files
+template = "%.9f %.9f %.9f %.9f %.9f %.9f %.9f %.9e" ### used to format output files
 
 if opts.Verbose: ### print progress bar
     progress = '\r[%s%s] %.2f'
