@@ -21,6 +21,13 @@ twoIpi = 2j*np.pi
 
 #-------------------------------------------------
 
+def sumLogs(arrayLike):
+    arrayLike = np.array(arrayLike)
+    maxVal = np.max(arrayLike)
+    return maxVal + np.log(np.sum(np.exp(arrayLike-maxVal)))
+
+#-------------------------------------------------
+
 class PSD(object):
     """
     a represenation of a PSD that is callable
@@ -282,14 +289,18 @@ def array_symmetries( theta, phi, psi, iota, distance, t0 ):
 
 #------------------------
 
-def IFOs2pole( ifo1, ifo2 ):
+def IFOs2pole( ifo1, ifo2, return_maxDT=False ):
     '''
     return the line-of-sight polar direction in Earth-fixed coordinates.
     return theta, phi
     '''
     pole = known_detectors[ifo1].r - known_detectors[ifo2].r
-    pole /= np.sum(pole**2)**0.5
-    return np.arccos(pole[2]), np.arctan2(pole[1], pole[0]) ### store this in polar coordinates
+    maxDT = np.sum(pole**2)**0.5
+    pole /= maxDT
+    if return_maxDT:
+        return (np.arccos(pole[2]), np.arctan2(pole[1], pole[0])), maxDT ### store this in polar coordinates
+    else:
+        return np.arccos(pole[2]), np.arctan2(pole[1], pole[0])
 
 def lineOfSight2ThetaPhi( theta_los, phi_los, pole=None ):
     """
