@@ -228,8 +228,8 @@ if opts.results_theta_phi:
     samples['phi'][samples['phi']>np.pi] -= 2*np.pi
 
     if opts.linear_prob:
+        samples['lnprob'] -= utils.sumLogs(samples['lnprob'])
         samples['lnprob'] = np.exp(samples['lnprob'])
-        samples['lnprob'] /= np.sum(samples['lnprob'])
 
     ### setup colors    
     mappable = cm.ScalarMappable(
