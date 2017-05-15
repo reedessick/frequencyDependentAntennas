@@ -232,6 +232,8 @@ for jnd1, det1 in enumerate(detectors[:-1]):
 
         ax.set_title('%s and %s'%(det1.name, det2.name))
 
+        ax.grid(True, which='both')
+
         if not opts.no_quiver_colorbar:
             cb = plt.colorbar(mappable, orientation='horizontal', shrink=0.8, pad=0.05)
             cb.set_label('$|\delta \\vec{\\theta}|$ [$^\circ$]')
