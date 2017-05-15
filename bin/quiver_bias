@@ -217,7 +217,8 @@ for jnd1, det1 in enumerate(detectors[:-1]):
         )
         mappable.set_array(data[:,2]*rad2deg)
 
-        for ind in xrange(npix):
+#        for ind in xrange(npix):
+        for ind in data[:,2].argsort()[::-1]:
             d_inj = 0.5*np.pi-theta_inj[ind]
             p_inj = phi_inj[ind]
 
