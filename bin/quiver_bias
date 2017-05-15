@@ -58,6 +58,9 @@ parser = OptionParser(usage=usage, description=description)
 parser.add_option('-v', '--verbose', default=False, action='store_true')
 parser.add_option('-V', '--Verbose', default=False, action='store_true')
 
+parser.add_option('', '--fmax', default=128, type='float')
+parser.add_option('', '--deltaf', default=1., type='float')
+
 parser.add_option('-i', '--instrument', default=[], type='string', action='append')
 
 parser.add_option('', '--nside', default=32, type='int')
@@ -113,7 +116,7 @@ psi = 0
 
 ### also hard-code frequencies
 ### FIXME: may want to allow the maximum frequency to be user-specified at some point
-freqs = np.arange(0, 128, 1.)
+freqs = np.arange(0, opts.fmax, opts.deltaf)
 
 for ind in xrange(npix):
 
@@ -169,7 +172,7 @@ for jnd, detector in enumerate(detectors):
     if opts.verbose:
         print( '    saving : '+figname )
     fig.savefig(figname)
-    plt.close(figname)
+    plt.close(fig)
 
 #------------------------
 
@@ -188,9 +191,6 @@ for jnd1, det1 in enumerate(detectors[:-1]):
 
         theta_rec, phi_rec = utils.lineOfSight2ThetaPhi(np.arccos(new_costheta), phi_los, pole=pole)
 
-        fig = plt.figure()
-        ax = fig.add_axes(axpos, projection='mollweide')
-
         data = []
         for ind in xrange(npix):
             d_inj = 0.5*np.pi-theta_inj[ind]
@@ -207,15 +207,41 @@ for jnd1, det1 in enumerate(detectors[:-1]):
             data.append( (dp, dd, ((np.cos(d_inj)*dp)**2+dd**2)**0.5) )
 
         data = np.array(data)
+
+        ### heatmap
+        fig = plt.figure()
+        ax_heatmap = fig.add_axes(axpos, projection='mollweide')
+
+        lalinf_plot.healpix_heatmap(data[:,2]*rad2deg, cmap=plt.get_cmap(opts.color_map), vmin=np.min(data[:,2])*rad2deg, vmax=min(np.max(data[:,2])*rad2deg, opts.max_dang))
+
+        ### decorate
+        cb = plt.colorbar(orientation='horizontal', shrink=0.8, pad=0.05)
+        cb.set_label('$|\delta \\vec{\\theta}|$ [$^\circ$]')
+
+        ax.set_title('%s and %s'%(det1.name, det2.name))
+        ax.grid(True, which='both')
+        ax.set_title(detector.name)
+
+        ### save
+        figname = "%s/quiver-skymap_heatmap-%s-%s%s.png"%(opts.output_dir, det1.name, det2.name, opts.tag)
+        if opts.verbose:
+            print( '    saving : '+figname )
+        fig.savefig(figname)
+        plt.close(fig)
+
+        ### arrows
         mappable = cm.ScalarMappable(
             norm=plt.Normalize(
 #            norm=colors.LogNorm(
-                vmin=np.min(data[:,2])*rad2deg, 
+                vmin=np.min(data[:,2])*rad2deg,
                 vmax=min(np.max(data[:,2])*rad2deg, opts.max_dang),
             ),
             cmap=plt.get_cmap(opts.color_map),
         )
         mappable.set_array(data[:,2]*rad2deg)
+
+        fig = plt.figure()
+        ax = fig.add_axes(axpos, projection='mollweide')
 
 #        for ind in xrange(npix):
         for ind in data[:,2].argsort()[::-1]:
@@ -244,4 +270,4 @@ for jnd1, det1 in enumerate(detectors[:-1]):
         if opts.verbose:
             print( '    saving : '+figname )
         fig.savefig(figname)
-        plt.close(figname)
+        plt.close(fig)
