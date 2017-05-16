@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-usage = "quiver_bias [--options]"
+usage = "cartesian_quiver [--options]"
 description = "produce quiver plots showing how the bias behaves as a function of source location"
 author = "Reed Essick"
 
@@ -29,16 +29,16 @@ plt.rcParams.update({
 #    "axes.formatter.limits": (-3, 4),
     "axes.labelsize": 14,
     "axes.titlesize": 14,
-    "figure.subplot.bottom": 0.13,
-    "figure.subplot.left": 0.20,
-    "figure.subplot.right": 0.85,
+    "figure.subplot.bottom": 0.10,
+    "figure.subplot.left": 0.13,
+    "figure.subplot.right": 0.95,
     "figure.subplot.top": 0.95,
     "grid.color": 'gray',
 #    "image.aspect": 'auto',
 #    "image.interpolation": 'nearest',
 #    "image.origin": 'lower',
-    "xtick.labelsize": 14,
-    "ytick.labelsize": 14,
+    "xtick.labelsize": 15,
+    "ytick.labelsize": 15,
 })
 
 from lalinference import plot as lalinf_plot
@@ -50,6 +50,7 @@ from optparse import OptionParser
 axpos = [0.07, 0.05, 0.92, 0.90]
 
 rad2deg = 180/np.pi
+deg2rad = 1./rad2deg
 
 #-------------------------------------------------
 
@@ -63,14 +64,7 @@ parser.add_option('', '--deltaf', default=1., type='float')
 
 parser.add_option('-i', '--instrument', default=[], type='string', action='append')
 
-parser.add_option('', '--nside', default=32, type='int')
-
 parser.add_option('', '--color-map', default='OrRd', type='string')
-
-parser.add_option('', '--min-dt', default=None, type='float',
-    help='for heatmaps. specified in milliseconds')
-parser.add_option('', '--max-dt', default=None, type='float',
-    help='for heatmaps. specified in milliseconds')
 
 parser.add_option('', '--max-dang', default=np.infty, type='float',
     help='maximum angle we use for coloration in quiver plot. specified in degrees. DEFAULT=infty')
@@ -80,6 +74,20 @@ parser.add_option('', '--arrow-scaling', default=1.0, type='float')
 
 parser.add_option('-o', '--output-dir', default='.', type='string')
 parser.add_option('-t', '--tag', default='', type='string')
+
+parser.add_option('', '--N-theta', default=10, type='int')
+parser.add_option('', '--min-theta', default=None, type='float',
+    help='plotting bounds. The same numerical value is applied to all frames of reference.')
+parser.add_option('', '--max-theta', default=None, type='float',
+    help='plotting bounds. The same numerical value is applied to all frames of reference.')
+
+parser.add_option('', '--N-phi', default=10, type='int')
+parser.add_option('', '--min-phi', default=None, type='float',
+    help='plotting bounds. The same numerical value is applied to all frames of reference.')
+parser.add_option('', '--max-phi', default=None, type='float',
+    help='plotting bounds. The same numerical value is applied to all frames of reference.')
+
+parser.add_option('', '--args-are-degrees', default=False, action='store_true')
 
 opts, args = parser.parse_args()
 
@@ -91,6 +99,33 @@ if opts.tag:
 
 opts.verbose = opts.verbose or opts.Verbose
 
+if opts.args_are_degrees:
+    pass
+
+else:
+    if opts.min_theta!=None:
+        opts.min_theta *= rad2deg
+    else:
+        opts.min_theta = 0
+    if opts.max_theta!=None:
+        opts.max_theta *= rad2deg
+    else:
+        opts.max_theta = 180
+    if opts.min_phi!=None:
+        opts.min_phi *= rad2deg
+    else:
+        opts.min_phi = -180
+    if opts.max_phi!=None:
+        opts.max_phi *= rad2deg
+    else:
+        opts.max_phi = 180
+
+if opts.min_phi > 180:
+    opts.min_phi -= 360
+if opts.max_phi > 180:
+    opts.max_phi -= 360
+
+
 #-------------------------------------------------
 
 if opts.verbose:
@@ -101,9 +136,17 @@ detectors = [utils.known_detectors[_] for _ in opts.instrument]
 if opts.verbose:
     print( 'computing shifts in time-of-arrival at each IFO from antenna responses\' phase' )
 ### iterate over source locations
-npix = hp.nside2npix(opts.nside)
-theta_inj, phi_inj = hp.pix2ang(opts.nside, np.arange(npix))
+theta_inj = np.linspace(opts.min_theta, opts.max_theta, opts.N_theta)*deg2rad
+
+phi_inj = np.linspace(opts.min_phi, opts.max_phi, opts.N_phi)*deg2rad
 phi_inj[phi_inj>np.pi] -= 2*np.pi ### needed for plotting, should not affect anything else
+
+theta_inj, phi_inj = np.meshgrid(theta_inj, phi_inj)
+
+theta_inj = theta_inj.flatten()
+phi_inj = phi_inj.flatten()
+
+npix = len(theta_inj)
 
 dts = np.empty((npix, len(detectors)), dtype=float)
 
@@ -142,45 +185,6 @@ if opts.Verbose:
 #------------------------
 
 if opts.verbose:
-    print( 'generating heatmaps of time-of-arrival delays' )
-        
-for jnd, detector in enumerate(detectors):
-
-    fig = plt.figure()
-    ax = fig.add_axes(axpos, projection='mollweide')
-
-    ### heatmap
-    x = dts[:,jnd]*1e3
-    lalinf_plot.healpix_heatmap(x, cmap=plt.get_cmap(opts.color_map), vmin=opts.min_dt, vmax=opts.max_dt)
-
-    ### decorate
-    cb = plt.colorbar(orientation='horizontal', shrink=0.8, pad=0.05)
-    cb.set_label('$\delta t$ [ms]')
-
-    ax.grid(True, which='both')
-
-    ax.set_title(detector.name)
-
-    ### label detector's frame of reference
-    for e, label in [(detector.ex, '$e_x$'), (detector.ey, '$e_y$'), (detector.ez, '$e_z$')]:
-        theta = np.arccos(e[2])
-        phi = np.arctan2(e[1], e[0])
-
-        dec = 0.5*np.pi-theta
-        ax.plot(phi, dec, marker='o', markerfacecolor='none', markersize=10)
-        ax.plot(phi, dec, marker='.', markerfacecolor='none', markersize=1)
-        ax.text(phi, dec, label, ha='left', va='top', fontsize=14)
-
-    ### save
-    figname = "%s/quiver-skymap-%s%s.png"%(opts.output_dir, detector.name, opts.tag)
-    if opts.verbose:
-        print( '    saving : '+figname )
-    fig.savefig(figname)
-    plt.close(fig)
-
-#------------------------
-
-if opts.verbose:
     print( 'generating quiver of biases on a pair-wise detector basis' )
 
 for jnd1, det1 in enumerate(detectors[:-1]):
@@ -212,26 +216,6 @@ for jnd1, det1 in enumerate(detectors[:-1]):
 
         data = np.array(data)
 
-        ### heatmap
-        fig = plt.figure()
-        ax_heatmap = fig.add_axes(axpos, projection='mollweide')
-
-        lalinf_plot.healpix_heatmap(data[:,2]*rad2deg, cmap=plt.get_cmap(opts.color_map), vmin=np.min(data[:,2])*rad2deg, vmax=min(np.max(data[:,2])*rad2deg, opts.max_dang))
-
-        ### decorate
-        cb = plt.colorbar(orientation='horizontal', shrink=0.8, pad=0.05)
-        cb.set_label('$|\delta \\vec{\\theta}|$ [$^\circ$]')
-
-        ax_heatmap.set_title('%s and %s'%(det1.name, det2.name))
-        ax_heatmap.grid(True, which='both')
-
-        ### save
-        figname = "%s/quiver-skymap_heatmap-%s-%s%s.png"%(opts.output_dir, det1.name, det2.name, opts.tag)
-        if opts.verbose:
-            print( '    saving : '+figname )
-        fig.savefig(figname)
-        plt.close(fig)
-
         ### arrows
         mappable = cm.ScalarMappable(
             norm=plt.Normalize(
@@ -244,17 +228,17 @@ for jnd1, det1 in enumerate(detectors[:-1]):
         mappable.set_array(data[:,2]*rad2deg)
 
         fig = plt.figure()
-        ax = fig.add_axes(axpos, projection='mollweide')
+        ax = fig.gca()
 
 #        for ind in xrange(npix):
         for ind in data[:,2].argsort()[::-1]:
-            d_inj = 0.5*np.pi-theta_inj[ind]
-            p_inj = phi_inj[ind]
+            d_inj = (0.5*np.pi-theta_inj[ind])*rad2deg
+            p_inj = phi_inj[ind]*rad2deg
 
-            dp, dd, norm = data[ind]
-            f = 1./3
-            F = 0.50
-            color = mappable.to_rgba(norm*rad2deg)
+            dp, dd, norm = data[ind]*rad2deg
+            f = 1./2
+            F = 0.75
+            color = mappable.to_rgba(norm)
 
             ax.arrow(
                 p_inj,
@@ -266,37 +250,46 @@ for jnd1, det1 in enumerate(detectors[:-1]):
                 fc=color, 
                 ec=color,
             )
-            ax.arrow(
-                p_inj-2*np.pi,
-                d_inj, 
-                opts.arrow_scaling*dp*(1-f), 
-                opts.arrow_scaling*dd*(1-f), 
-                head_width=opts.arrow_scaling*F*f*norm, 
-                head_length=opts.arrow_scaling*f*norm, 
-                fc=color, 
-                ec=color,
-            )
-            ax.arrow(
-                p_inj+2*np.pi,
-                d_inj, 
-                opts.arrow_scaling*dp*(1-f), 
-                opts.arrow_scaling*dd*(1-f), 
-                head_width=opts.arrow_scaling*F*f*norm, 
-                head_length=opts.arrow_scaling*f*norm, 
-                fc=color, 
-                ec=color,
-            )
+#            ax.arrow(
+#                p_inj-360,
+#                d_inj, 
+#                opts.arrow_scaling*dp*(1-f), 
+#                opts.arrow_scaling*dd*(1-f), 
+#                head_width=opts.arrow_scaling*F*f*norm, 
+#                head_length=opts.arrow_scaling*f*norm, 
+#                fc=color, 
+#                ec=color,
+#            )
+#            ax.arrow(
+#                p_inj+360,
+#                d_inj, 
+#                opts.arrow_scaling*dp*(1-f), 
+#                opts.arrow_scaling*dd*(1-f), 
+#                head_width=opts.arrow_scaling*F*f*norm, 
+#                head_length=opts.arrow_scaling*f*norm, 
+#                fc=color, 
+#                ec=color,
+#            )
 
         ax.set_title('%s and %s'%(det1.name, det2.name))
 
         ax.grid(True, which='both')
 
         if not opts.no_quiver_colorbar:
-            cb = plt.colorbar(mappable, orientation='horizontal', shrink=0.8, pad=0.05)
+            cb = plt.colorbar(mappable, orientation='vertical', shrink=0.8, pad=0.05)
             cb.set_label('$|\delta \\vec{\\theta}|$ [$^\circ$]')
 
+        ax.set_xlim(xmin=opts.min_phi, xmax=opts.max_phi)
+        ax.set_ylim(ymin=90-opts.max_theta, ymax=90-opts.min_theta)
+
+        ax.set_ylabel('$\delta$')
+        ax.set_xlabel('$\phi$')
+
+        ax.set_yticklabels(['$%.1f^\circ$'%tick for tick in ax.get_yticks()])
+        ax.set_xticklabels(['$%.1f^\circ$'%tick for tick in ax.get_xticks()])
+
         ### save
-        figname = "%s/quiver-skymap-%s-%s%s.png"%(opts.output_dir, det1.name, det2.name, opts.tag)
+        figname = "%s/cartesian_quiver-skymap-%s-%s%s.png"%(opts.output_dir, det1.name, det2.name, opts.tag)
         if opts.verbose:
             print( '    saving : '+figname )
         fig.savefig(figname)
