@@ -1,0 +1,307 @@
+#!/usr/bin/env python
+
+usage = "cartesian_overlay [--options] good_ensemble.txt bad_ensemble.txt"
+description = "generate representations of the ensemble of points produced by localize"
+author = "Reed Essick"
+
+#-------------------------------------------------
+
+import os
+
+import numpy as np
+
+import emcee ### for autocorrelation analysis
+
+import simUtils as utils
+
+import matplotlib
+matplotlib.use('Agg')
+from matplotlib import cm
+from matplotlib import pyplot as plt
+plt.rcParams.update({
+    'text.usetex':True,
+    'font.family': 'serif',
+#    'font.serif': ['Computer Modern'],
+#    "axes.grid": True,
+#    "axes.axisbelow": False,
+#    "axes.formatter.limits": (-3, 4),
+    "axes.labelsize": 15,
+    "axes.titlesize": 15,
+    "figure.subplot.bottom": 0.10,
+    "figure.subplot.left": 0.13,
+    "figure.subplot.right": 0.95,
+    "figure.subplot.top": 0.95,
+    "grid.color": 'gray',
+#    "image.aspect": 'auto',
+#    "image.interpolation": 'nearest',
+#    "image.origin": 'lower',
+    "xtick.labelsize": 15,
+    "ytick.labelsize": 15,
+})
+
+import corner
+
+from optparse import OptionParser
+
+#-------------------------------------------------
+
+deg2rad = np.pi/180
+rad2deg = 1./deg2rad
+
+#-------------------------------------------------
+
+parser = OptionParser(usage=usage, description=description)
+
+parser.add_option('-v', '--verbose', default=False, action='store_true')
+
+parser.add_option('-o', '--output-dir', default='.', type='string')
+parser.add_option('-t', '--tag', default='', type='string')
+
+### limits on what data to plot
+parser.add_option('', '--min-sample', default=0, type='int',
+    help='discard all samples that have indecies less than --min-sample. DEFAULT=0')
+
+parser.add_option('', '--sample-spacing', default=1, type='int',
+    help='only retain 1 in every --sample-spacing points. DEFAULT=1')
+
+### reference parameters
+
+parser.add_option('', '--theta', default=None, type='float',
+    help='the injected parameter. Will be annotated on plots')
+parser.add_option('', '--phi', default=None, type='float',
+    help='the injected parameter. Will be annotated on plots')
+parser.add_option('', '--psi', default=None, type='float',
+    help='the injected parameter. Will be annotated on plots')
+parser.add_option('', '--iota', default=None, type='float',
+    help='the injected parameter. Will be annotated on plots')
+parser.add_option('', '--distanceMpc', default=None, type='float',
+    help='the injected parameter. Will be annotated on plots')
+parser.add_option('', '--timeAtCoalescence', default=None, type='float',
+    help='the injected parameter. Will be annotated on plots')
+
+parser.add_option('', '--args-are-degrees', default=False, action='store_true')
+
+### line-of-sight plots to make
+parser.add_option('', '--line-of-sight', nargs=2, default=[], type='string', action='append',
+    help='generate skymap scatters in this line of sight as well. \
+Also, add dT marginal to corner plot. (eg: H L)')
+
+### plotting options
+parser.add_option('', '--color', default='k', type='string',
+    help='color used for annotation in skymap scatter and truth annotations in corner')
+parser.add_option('', '--alpha', default=1.0, type='float',
+    help='alpha used for annotation in skymap scatter')
+
+parser.add_option('', '--scatter-alpha', default=0.1, type='float',
+    help='alpha used for markers in skymap scatter')
+
+parser.add_option('', '--color-map1', default="OrRd", type='string',
+    help='used to color points in skymap scatter plot')
+parser.add_option('', '--color-map2', default="GnBu", type='string',
+    help='used to color points in skymap scatter plot')
+parser.add_option('', '--colorbar', default=False, action='store_true',
+    help='include colobars')
+
+parser.add_option('', '--min-lnprob', default=None, type='float',
+    help='the minimum lnprob plotted in skymap scatter')
+parser.add_option('', '--max-lnprob', default=None, type='float',
+    help='the maximum lnprob plotted in skymap scatter')
+
+parser.add_option('', '--linear-prob', default=False, action='store_true',
+    help='use linear probability instead of lnprob')
+
+parser.add_option('', '--scatter-markersize', default=1, type='float',
+    help='the markersize for skymap scatter plot')
+
+parser.add_option('', '--min-theta', default=None, type='float',
+    help='plotting bounds. The same numerical value is applied to all frames of reference.')
+parser.add_option('', '--max-theta', default=None, type='float',
+    help='plotting bounds. The same numerical value is applied to all frames of reference.')
+
+parser.add_option('', '--min-phi', default=None, type='float',
+    help='plotting bounds. The same numerical value is applied to all frames of reference.')
+parser.add_option('', '--max-phi', default=None, type='float',
+    help='plotting bounds. The same numerical value is applied to all frames of reference.')
+
+opts, args = parser.parse_args()
+
+assert len(args)==2, 'please supply exactly 2 input argument\n%s'%usage
+
+if not os.path.exists(opts.output_dir):
+    os.makedirs(opts.output_dir)
+
+if opts.tag:
+    opts.tag = "_"+opts.tag
+
+if opts.args_are_degrees:
+    if opts.theta!=None: 
+        opts.theta *= deg2rad
+    if opts.phi!=None: 
+        opts.phi *= deg2rad
+    if opts.psi!=None: 
+        opts.psi *= deg2rad
+    if opts.iota!=None: 
+        opts.iota *= deg2rad
+
+else:
+    if opts.min_theta!=None:
+        opts.min_theta *= rad2deg
+    if opts.max_theta!=None:
+        opts.max_theta *= rad2deg
+    if opts.min_phi!=None:
+        opts.min_phi *= rad2deg
+    if opts.max_phi!=None:
+        opts.max_phi *= rad2deg
+
+if opts.phi > np.pi:
+    opts.phi -= 2*np.pi
+
+if opts.min_phi > 180:
+    opts.min_phi -= 360
+if opts.max_phi > 180:
+    opts.max_phi -= 360
+
+if opts.linear_prob:
+    if opts.max_lnprob!=None:
+        opts.max_lnprob = np.exp(opts.max_lnprob)
+    if opts.min_lnprob!=None:
+        opts.min_lnprob = np.exp(opts.min_lnprob)
+
+#-------------------------------------------------
+
+if opts.verbose:
+    print( 'reading ensemble of samples from : '+args[0] )
+samples1 = utils.load_ensemble( args[0], min_sample=opts.min_sample, spacing=opts.sample_spacing )
+samples1['phi'][samples1['phi']>np.pi] -= 2*np.pi ### shift phi to match plotting range
+
+if opts.verbose:
+    print( 'reading ensemble of samples from : '+args[1] )
+samples2 = utils.load_ensemble( args[1], min_sample=opts.min_sample, spacing=opts.sample_spacing )
+samples2['phi'][samples2['phi']>np.pi] -= 2*np.pi
+
+# columns are :
+#   k (walker number)
+#   lnprob
+#   theta
+#   phi
+#   psi
+#   iota
+#   distanceMpc
+#   timeAtCoalescence
+
+#-------------------------------------------------
+
+if opts.verbose:
+    print( '(scatter) plot skymap on cartesian projection' )
+
+if opts.linear_prob:
+    samples1['lnprob'] -= utils.sumLogs(samples1['lnprob'])
+    samples1['lnprob'] = np.exp(samples1['lnprob'])
+
+    samples2['lnprob'] -= utils.sumLogs(samples2['lnprob'])
+    samples2['lnprob'] = np.exp(samples2['lnprob'])
+
+### color points by their lnprob
+vmin=opts.min_lnprob if opts.min_lnprob!=None else min(np.min(samples1['lnprob'][samples1['lnprob']>-np.infty]), np.min(samples2['lnprob'][samples2['lnprob']>-np.infty]))
+vmax=opts.max_lnprob if opts.max_lnprob!=None else max(np.max(samples1['lnprob'][samples1['lnprob']<np.infty]),  np.max(samples2['lnprob'][samples2['lnprob']<np.infty]))
+
+mappable1 = cm.ScalarMappable(
+    norm=plt.Normalize(
+        vmin=vmin,
+        vmax=vmax,
+    ),
+    cmap=plt.get_cmap(opts.color_map1),
+)
+mappable1.set_array(samples1['lnprob'])
+order1 = samples1['lnprob'].argsort() ### smallest to largest
+color1 = mappable1.to_rgba(samples1['lnprob'][order1])
+
+truth1 = samples1['lnprob'][order1]>vmin
+
+mappable2 = cm.ScalarMappable(
+    norm=plt.Normalize(
+        vmin=vmin,
+        vmax=vmax,
+    ),
+    cmap=plt.get_cmap(opts.color_map2),
+)
+mappable2.set_array(samples2['lnprob'])
+order2 = samples2['lnprob'].argsort() ### smallest to largest
+color2 = mappable2.to_rgba(samples2['lnprob'][order2])
+
+truth2 = samples2['lnprob'][order2]>vmin
+
+
+### iterate over line-of-sight frames
+for tag, pole in [('', None)] + [('-'+''.join(los), utils.IFOs2pole(*los)) for los in opts.line_of_sight]:
+    fig = plt.figure()
+    ax = fig.gca()
+
+    theta, phi = utils.ThetaPhi2LineOfSight( samples1['theta'][order1], samples1['phi'][order1], pole=pole )
+
+    ax.scatter(
+        rad2deg*phi[truth1], 
+        90 - rad2deg*theta[truth1], ### plot declination, not theta
+        color=color1[truth1],
+        alpha=opts.scatter_alpha,
+        marker='o', 
+        s=opts.scatter_markersize,
+    )
+
+    if opts.colorbar:
+        cb1 = plt.colorbar(mappable1, orientation='vertical', shrink=0.8, pad=0.05)
+        if opts.linear_prob:
+            cb1.set_label('$p(\\vec{\\theta}|\mathrm{data},\mathrm{good})$')
+        else:
+            cb1.set_label('$\ln p(\\vec{\\theta}|\mathrm{data},\mathrm{good})$')
+
+    theta, phi = utils.ThetaPhi2LineOfSight( samples2['theta'][order2], samples2['phi'][order2], pole=pole )
+
+    ax.scatter(
+        rad2deg*phi[truth2], 
+        90 - rad2deg*theta[truth2], ### plot declination, not theta
+        color=color2[truth2],
+        alpha=opts.scatter_alpha,
+        marker='o', 
+        s=opts.scatter_markersize,
+    )
+
+    if opts.colorbar:
+        cb2 = plt.colorbar(mappable2, orientation='vetrical', shrink=0.8, pad=0.05)
+        if opts.linear_prob:
+            cb2.set_label('$p(\\vec{\\theta}|\mathrm{data},\mathrm{bad})$')
+        else:
+            cb2.set_label('$\ln p(\\vec{\\theta}|\mathrm{data},\mathrm{bad})$')
+
+    #---
+
+    ax.set_xlabel('$\phi$')
+    ax.set_ylabel('$\delta$')
+
+    ax.grid(True, which='both')
+    if (opts.phi!=None) and (opts.theta!=None):
+        theta, phi = utils.ThetaPhi2LineOfSight( opts.theta, opts.phi, pole=pole )
+        ax.plot(rad2deg*phi, 90-rad2deg*theta, marker='x', markersize=10, color=opts.color, alpha=opts.alpha )
+
+    if opts.min_theta!=None:
+        ax.set_ylim(ymax=90-opts.min_theta)
+    if opts.max_theta!=None:
+        ax.set_ylim(ymin=90-opts.max_theta)
+    ymin, ymax = ax.get_ylim()
+    ax.set_ylim(ymin=max(ymin, -90), ymax=min(ymax, 90))
+
+    if opts.min_phi!=None:
+        ax.set_xlim(xmin=opts.min_phi)
+    if opts.max_phi!=None:
+        ax.set_xlim(xmax=opts.max_phi)
+    xmin, xmax = ax.get_xlim()
+    ax.set_xlim(xmin=max(xmin, -180), xmax=min(xmax, 180))
+
+    ax.set_xticklabels(['$%.1f^\circ$'%tick for tick in ax.get_xticks()])
+    ax.set_yticklabels(['$%.1f^\circ$'%tick for tick in ax.get_yticks()])
+
+    figname = "%s/cartesian_overlay-skymap%s%s.png"%(opts.output_dir, tag, opts.tag)
+    if opts.verbose:
+        print( '    saving : '+figname )
+    fig.savefig(figname)
+    plt.close(figname)
