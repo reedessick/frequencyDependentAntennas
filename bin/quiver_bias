@@ -76,6 +76,8 @@ parser.add_option('', '--max-dang', default=np.infty, type='float',
     help='maximum angle we use for coloration in quiver plot. specified in degrees. DEFAULT=infty')
 parser.add_option('', '--no-quiver-colorbar', default=False, action='store_true')
 
+parser.add_option('', '--arrow-scaling', default=1.0, type='float')
+
 parser.add_option('-o', '--output-dir', default='.', type='string')
 parser.add_option('-t', '--tag', default='', type='string')
 
@@ -131,7 +133,7 @@ for ind in xrange(npix):
         x = (plus*Fp.flatten() + cros*Fx.flatten())/(plus*Fp0+cros*Fx0)
         phs = np.arctan2(x.imag, x.real)
 
-        dt = np.polyfit(freqs, phs, deg=1)[0] ### extract the slope of a linear relationship between phase and freqs
+        dt = np.polyfit(2*np.pi*freqs, phs, deg=1)[0] ### extract the slope of a linear relationship between phase and freqs
                                           ### this corresponds to the time-of-arrival offset
         dts[ind,jnd] = dt
 
@@ -218,9 +220,8 @@ for jnd1, det1 in enumerate(detectors[:-1]):
         cb = plt.colorbar(orientation='horizontal', shrink=0.8, pad=0.05)
         cb.set_label('$|\delta \\vec{\\theta}|$ [$^\circ$]')
 
-        ax.set_title('%s and %s'%(det1.name, det2.name))
-        ax.grid(True, which='both')
-        ax.set_title(detector.name)
+        ax_heatmap.set_title('%s and %s'%(det1.name, det2.name))
+        ax_heatmap.grid(True, which='both')
 
         ### save
         figname = "%s/quiver-skymap_heatmap-%s-%s%s.png"%(opts.output_dir, det1.name, det2.name, opts.tag)
@@ -253,9 +254,36 @@ for jnd1, det1 in enumerate(detectors[:-1]):
             F = 0.50
             color = mappable.to_rgba(norm*rad2deg)
 
-            ax.arrow(p_inj,         d_inj, dp*(1-f), dd*(1-f), head_width=F*f*norm, head_length=f*norm, fc=color, ec=color)
-            ax.arrow(p_inj-2*np.pi, d_inj, dp*(1-f), dd*(1-f), head_width=F*f*norm, head_length=f*norm, fc=color, ec=color) ### plot these so arrows wrap
-            ax.arrow(p_inj+2*np.pi, d_inj, dp*(1-f), dd*(1-f), head_width=F*f*norm, head_length=f*norm, fc=color, ec=color)
+            ax.arrow(
+                p_inj,
+                d_inj, 
+                opts.arrow_scaling*dp*(1-f), 
+                opts.arrow_scaling*dd*(1-f), 
+                head_width=opts.arrow_scaling*F*f*norm, 
+                head_length=opts.arrow_scaling*f*norm, 
+                fc=color, 
+                ec=color,
+            )
+            ax.arrow(
+                p_inj-2*np.pi,
+                d_inj, 
+                opts.arrow_scaling*dp*(1-f), 
+                opts.arrow_scaling*dd*(1-f), 
+                head_width=opts.arrow_scaling*F*f*norm, 
+                head_length=opts.arrow_scaling*f*norm, 
+                fc=color, 
+                ec=color,
+            )
+            ax.arrow(
+                p_inj+2*np.pi,
+                d_inj, 
+                opts.arrow_scaling*dp*(1-f), 
+                opts.arrow_scaling*dd*(1-f), 
+                head_width=opts.arrow_scaling*F*f*norm, 
+                head_length=opts.arrow_scaling*f*norm, 
+                fc=color, 
+                ec=color,
+            )
 
         ax.set_title('%s and %s'%(det1.name, det2.name))
 
