@@ -7,12 +7,14 @@ author = "Reed Essick"
 #-------------------------------------------------
 
 import os
+import sys
 
 import numpy as np
 
 import emcee ### for autocorrelation analysis
 
 import simUtils as utils
+import freqDepAntennas as ant
 
 import matplotlib
 matplotlib.use('Agg')
@@ -53,6 +55,7 @@ rad2deg = 1./deg2rad
 parser = OptionParser(usage=usage, description=description)
 
 parser.add_option('-v', '--verbose', default=False, action='store_true')
+parser.add_option('-V', '--Verbose', default=False, action='store_true')
 
 parser.add_option('-o', '--output-dir', default='.', type='string')
 parser.add_option('-t', '--tag', default='', type='string')
@@ -123,9 +126,27 @@ parser.add_option('', '--min-phi', default=None, type='float',
 parser.add_option('', '--max-phi', default=None, type='float',
     help='plotting bounds. The same numerical value is applied to all frames of reference.')
 
+###
+parser.add_option('', '--quiver', default=False, action='store_true')
+
+parser.add_option('', '--N-theta', default=5, type='int')
+parser.add_option('', '--N-phi', default=5, type='int')
+
+parser.add_option('', '--fmax', default=128, type='float')
+parser.add_option('', '--deltaf', default=1., type='float')
+
+parser.add_option('-i', '--instrument', default=[], type='string', action='append')
+parser.add_option('', '--max-dang', default=np.infty, type='float',
+    help='maximum angle we use for coloration in quiver plot. specified in degrees. DEFAULT=infty')
+
+parser.add_option('', '--arrow-scaling', default=1.0, type='float')
+parser.add_option('', '--arrow-alpha', default=0.25, type='float')
+
 opts, args = parser.parse_args()
 
 assert len(args)==2, 'please supply exactly 2 input argument\n%s'%usage
+
+opts.verbose = opts.verbose or opts.Verbose
 
 if not os.path.exists(opts.output_dir):
     os.makedirs(opts.output_dir)
@@ -231,6 +252,58 @@ color2 = mappable2.to_rgba(samples2['lnprob'][order2])
 
 truth2 = samples2['lnprob'][order2]>vmin
 
+### set up quiver
+if opts.quiver:
+    detectors = [utils.known_detectors[_] for _ in opts.instrument]
+    assert len(detectors)==2
+
+    ### iterate over source locations
+    theta_inj = np.linspace(opts.min_theta, opts.max_theta, opts.N_theta)*deg2rad
+
+    phi_inj = np.linspace(opts.min_phi, opts.max_phi, opts.N_phi)*deg2rad
+    phi_inj[phi_inj>np.pi] -= 2*np.pi ### needed for plotting, should not affect anything else
+
+    theta_inj, phi_inj = np.meshgrid(theta_inj, phi_inj)
+
+    theta_inj = theta_inj.flatten()
+    phi_inj = phi_inj.flatten()
+
+    npix = len(theta_inj)
+
+    dts = np.empty((npix, len(detectors)), dtype=float)
+
+    ### for now, hard-code inclination and polarization angle. 
+    ### FIXME: may want to marginalize over this at some point...
+    iota = 0
+    cosiota = np.cos(iota)
+    plus = 0.5*(1+cosiota**2)
+    cros = 1j*cosiota
+
+    psi = 0
+
+    ### also hard-code frequencies
+    ### FIXME: may want to allow the maximum frequency to be user-specified at some point
+    freqs = np.arange(0, opts.fmax, opts.deltaf)
+
+    for ind in xrange(npix):
+
+        if opts.Verbose:
+            sys.stdout.write('\r%d / %d'%(ind+1, npix))
+            sys.stdout.flush()
+
+        for jnd, detector in enumerate(detectors):
+            Fp, Fx = ant.antenna_response(theta_inj[ind], phi_inj[ind], psi, detector.ex, detector.ey, T=detector.T, freqs=freqs)
+            Fp0, Fx0 = ant.const_antenna_response(theta_inj[ind], phi_inj[ind], psi, detector.ex, detector.ey)
+
+            x = (plus*Fp.flatten() + cros*Fx.flatten())/(plus*Fp0+cros*Fx0)
+            phs = np.arctan2(x.imag, x.real)
+
+            dt = np.polyfit(2*np.pi*freqs, phs, deg=1)[0] ### extract the slope of a linear relationship between phase and freqs
+                                          ### this corresponds to the time-of-arrival offset
+            dts[ind,jnd] = dt
+    if opts.Verbose:
+        sys.stdout.write('\n')
+
 
 ### iterate over line-of-sight frames
 for tag, pole in [('', None)] + [('-'+''.join(los), utils.IFOs2pole(*los)) for los in opts.line_of_sight]:
@@ -304,4 +377,76 @@ for tag, pole in [('', None)] + [('-'+''.join(los), utils.IFOs2pole(*los)) for l
     if opts.verbose:
         print( '    saving : '+figname )
     fig.savefig(figname)
+
+    #---------------------------------------------
+    if opts.quiver:
+        if opts.verbose:
+            print( 'generating quiver of biases on a pair-wise detector basis' )
+
+        det1, det2 = detectors
+        jnd1 = jnd2 = 0
+
+        pole, maxDT = utils.IFOs2pole( det1.name, det2.name, return_maxDT=True )
+        theta_los, phi_los = utils.ThetaPhi2LineOfSight(theta_inj, phi_inj, pole=pole)
+
+        new_costheta = np.cos(theta_los) - (dts[:,jnd1]-dts[:,jnd1+1+jnd2])/maxDT
+        new_costheta[new_costheta>1] = 1   ### constraints based on range of cos(theta)
+        new_costheta[new_costheta<-1] = -1
+
+        theta_rec, phi_rec = utils.lineOfSight2ThetaPhi(np.arccos(new_costheta), phi_los, pole=pole)
+
+        data = []
+        for ind in xrange(npix):
+            d_inj = 0.5*np.pi-theta_inj[ind]
+            p_inj = phi_inj[ind]
+
+            d_rec = 0.5*np.pi-theta_rec[ind]
+            p_rec = phi_rec[ind]
+
+            dp = (p_rec-p_inj)%(2*np.pi)
+            if np.abs(dp) > np.pi:
+                dp = (p_inj-p_rec)%(2*np.pi)
+            dd = (d_rec-d_inj)
+
+            data.append( (dp, dd, ((np.cos(d_inj)*dp)**2+dd**2)**0.5) )
+
+        data = np.array(data)
+
+        ### arrows
+#        mappable = cm.ScalarMappable(
+#            norm=plt.Normalize(
+#                vmin=np.min(data[:,2])*rad2deg,
+#                vmax=min(np.max(data[:,2])*rad2deg, opts.max_dang),
+#            ),
+#            cmap=plt.get_cmap(opts.color_map),
+#        )
+#        mappable.set_array(data[:,2]*rad2deg)
+
+        for ind in data[:,2].argsort()[::-1]:
+            d_inj = (0.5*np.pi-theta_inj[ind])*rad2deg
+            p_inj = phi_inj[ind]*rad2deg
+
+            dp, dd, norm = data[ind]*rad2deg
+            f = 1./3
+            F = 0.75
+#            color = mappable.to_rgba(norm)
+            color = 'k'
+
+            ax.arrow(
+                p_inj,
+                d_inj,
+                opts.arrow_scaling*dp*(1-f),
+                opts.arrow_scaling*dd*(1-f),
+                head_width=opts.arrow_scaling*F*f*norm,
+                head_length=opts.arrow_scaling*f*norm,
+                fc=color,
+                ec=color,
+                alpha=opts.arrow_alpha,
+            )
+
+        figname = "%s/cartesian_overlay-skymap-%s-%s%s%s.png"%(opts.output_dir, det1.name, det2.name, tag, opts.tag)
+        if opts.verbose:
+            print( '    saving : '+figname )
+        fig.savefig(figname)
+
     plt.close(figname)
