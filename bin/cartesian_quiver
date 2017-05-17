@@ -125,7 +125,6 @@ if opts.min_phi > 180:
 if opts.max_phi > 180:
     opts.max_phi -= 360
 
-
 #-------------------------------------------------
 
 if opts.verbose:
