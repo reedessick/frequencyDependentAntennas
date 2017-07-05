@@ -1,0 +1,127 @@
+#!/usr/bin/env python
+
+usage = "timing_uncertainty [--options]"
+description = """\
+compute the timing uncertatingy a la Fairhurst (2009) for a variety of redshifts."""
+author = "Reed Essick"
+
+#-------------------------------------------------
+
+import numpy as np
+
+import simUtils as utils
+
+from lal import lal
+from lal.lal import MSUN_SI as LAL_MSUN_SI
+from lal.lal import PC_SI as LAL_PC_SI
+from lal.lal import C_SI as LAL_C_SI
+from lal.lal import G_SI as LAL_G_SI
+
+import lalsimulation as lalsim
+
+from optparse import OptionParser
+
+#-------------------------------------------------
+
+known_detectors = utils.known_detectors
+
+Ndim = 6 # theta, phi, psi, iota, distance, tac
+
+#-------------------------------------------------
+
+parser = OptionParser(usage=usage, description=description)
+
+### output options
+
+parser.add_option('-v', '--verbose', default=False, action='store_true')
+
+### options about the network and assumptions we make about antenna patterns
+
+parser.add_option('', '--psd', default='CE', type='string',
+    help='DEFAULT=CE')
+
+### parameters about the samplers
+
+parser.add_option('', '--min-z', default=0, type='float',
+    help='DEFAULT=0')
+parser.add_option('', '--max-z', default=5, type='float',
+    help='DEFAULT=5')
+parser.add_option('', '--Nz', default=101, type='int',
+    help='DEFAULT=101')
+
+### parameters about the injected signal
+
+parser.add_option('', '--m1', default=1.4, type='float',
+    help='in Msun. DEFAULT=1.4')
+parser.add_option('', '--m2', default=1.4, type='float',
+    help="in Msun. DEFAULT=1.4")
+
+parser.add_option('', '--s1z', default=0.0, type='float',
+    help='DEFAULT=0')
+parser.add_option('', '--s2z', default=0.0, type='float',
+    help='DEFAULT=0')
+
+parser.add_option('', '--phiRef', default=1.5*np.pi, type='float',
+    help='in rad. DEFAULT=3*pi/2')
+
+### signal processing params
+
+parser.add_option('', '--f-min', default=10., type='float',
+    help='in Hz. DEFAULT=10')
+parser.add_option('', '--f-ref', default=40., type='float',
+    help='in Hz. DEFAULT=40')
+
+parser.add_option('', '--srate', default=4096., type='float',
+    help='in Hz. DEFAULT=4096')
+parser.add_option('', '--seglen', default=64., type='float',
+    help='in sec. DEFAULT=64')
+
+opts, args = parser.parse_args()
+
+psd = utils.known_psds[opts.psd]
+
+#-------------------------------------------------
+
+for z in np.linspace(opts.min_z, opts.max_z, opts.Nz):
+    if opts.verbose:
+        print( 'processing z=%.3f'%z )
+    # technical parameters for vector length
+    length = opts.srate*opts.seglen 
+
+    deltaT = 1.0/opts.srate
+    deltaF = 1.0 / (length * deltaT);
+
+    #frequencies
+    isco = LAL_C_SI**3/(LAL_G_SI*(opts.m1+opts.m2)*(1+z)*LAL_MSUN_SI) / (np.pi * 6**(3./2))*5 ### extra factor of 5 is from Matt's advice
+    f_max = min(float(opts.srate)/2.0, isco) ### up to Nyquist or isco
+
+    ## build the waveforms!
+    h = lalsim.SimInspiralTaylorF2(
+        opts.phiRef,
+        deltaF,
+        opts.m1*LAL_MSUN_SI(1+z), 
+        opts.m2*LAL_MSUN_SI(1+z),
+        opts.s1z, 
+        opts.s2z,
+        opts.f_min, 
+        f_max, 
+        opts.f_ref,
+        LAL_PC_SI*1e6, ### normalize to 1 Mpc
+        lal.CreateDict(),
+    )
+    freqs = np.array([h.f0+i*h.deltaF for i in np.arange(h.data.length)])
+    PSD = psd(freqs)
+    h = h.data.data ### I only care about the frequency vector
+
+    ### compute template (normalized version of waveform)
+    norm = (4*np.sum(deltaF*np.conjugate(h)*h/PSD).real)**0.5
+    template = h/norm
+
+    ### compute SNR
+    snr = 4*np.sum(deltaF*np.conjugate(h)*template/PSD).real
+
+    ### compute frequency averages
+    raise NotImplementedError, 'averages over freq'
+
+    ### compute timing uncertainty
+    raise NotImplementedError, 'compute timing uncertainty'
