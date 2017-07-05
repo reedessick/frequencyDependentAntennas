@@ -105,7 +105,7 @@ for z in np.linspace(opts.min_z, opts.max_z, opts.Nz):
     deltaF = 1.0 / (length * deltaT);
 
     #frequencies
-    isco = LAL_C_SI**3/(LAL_G_SI*(opts.m1+opts.m2)*(1+z)*LAL_MSUN_SI) / (np.pi * 6**(3./2))*5 ### extra factor of 5 is from Matt's advice
+    isco = LAL_C_SI**3/(LAL_G_SI*(opts.m1+opts.m2)*(1+z)*LAL_MSUN_SI) / (np.pi * 6**(3./2)) * 5 ### extra factor of 5 is from Matt's advice
     f_max = min(float(opts.srate)/2.0, isco) ### up to Nyquist or isco
 
     #distance
@@ -141,9 +141,12 @@ for z in np.linspace(opts.min_z, opts.max_z, opts.Nz):
     aveF = 4*np.sum(deltaF*np.conjugate(template)*template/PSD * freqs).real
     aveF2 = 4*np.sum(deltaF*np.conjugate(template)*template/PSD * freqs**2).real
 
-    sigmaF = aveF2 - aveF**2
-
+    sigmaF = (aveF2 - aveF**2)**0.5
+    sigmaT = 1./(2*np.pi*snr*sigmaF)
     ### compute timing uncertainty
+    print "    fmin = %.3f Hz"%opts.f_min
+    print "    fmax = %.3f Hz"%f_max
     print "    snr = %.3f"%snr
     print "    Distance = %.3f Gpc"%(distance)
-    print "    sigmaT = (%.6e sec)"%(1./(2*np.pi*snr*sigmaF))
+    print "    sigmaT = %.6e sec"%(sigmaT)
+    print "    sigmaDt = %.6e sec"%(sigmaT*2**0.5)
