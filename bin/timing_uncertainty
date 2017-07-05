@@ -42,7 +42,7 @@ parser.add_option('', '--psd', default='CE', type='string',
 
 ### parameters about the samplers
 
-parser.add_option('', '--min-z', default=0, type='float',
+parser.add_option('', '--min-z', default=0.01, type='float',
     help='DEFAULT=0')
 parser.add_option('', '--max-z', default=5, type='float',
     help='DEFAULT=5')
@@ -82,9 +82,22 @@ psd = utils.known_psds[opts.psd]
 
 #-------------------------------------------------
 
+### cosmology taken from arXiv:1502.01589 / doi: 10.1051/0004-6361/201525830
+h = 0.6774
+Om = (0.02230+0.1188)/h**2
+OL = 1-Om
+
+Ho = h*100 ### km/s/Mpc
+Ho *= 3.24078e-20 ### convert to Hz
+
+c = 299792458 ### m/s
+c *= 3.2408e-26 ### convert from m/s -> Gpc/s
+
+
 for z in np.linspace(opts.min_z, opts.max_z, opts.Nz):
-    if opts.verbose:
-        print( 'processing z=%.3f'%z )
+
+    print( 'z=%.3f'%z )
+
     # technical parameters for vector length
     length = opts.srate*opts.seglen 
 
@@ -95,18 +108,22 @@ for z in np.linspace(opts.min_z, opts.max_z, opts.Nz):
     isco = LAL_C_SI**3/(LAL_G_SI*(opts.m1+opts.m2)*(1+z)*LAL_MSUN_SI) / (np.pi * 6**(3./2))*5 ### extra factor of 5 is from Matt's advice
     f_max = min(float(opts.srate)/2.0, isco) ### up to Nyquist or isco
 
+    #distance
+    zeta = np.linspace(0, z, 10001) ### just use a lot of points...
+    distance = (1+z)*(c/Ho)*np.trapz( (Om*(1+zeta)**3 + OL)**-0.5, zeta ) ### should be in Gpc
+
     ## build the waveforms!
     h = lalsim.SimInspiralTaylorF2(
         opts.phiRef,
         deltaF,
-        opts.m1*LAL_MSUN_SI(1+z), 
-        opts.m2*LAL_MSUN_SI(1+z),
+        opts.m1*(1+z)*LAL_MSUN_SI,
+        opts.m2*(1+z)*LAL_MSUN_SI,
         opts.s1z, 
         opts.s2z,
         opts.f_min, 
         f_max, 
         opts.f_ref,
-        LAL_PC_SI*1e6, ### normalize to 1 Mpc
+        distance*LAL_PC_SI*1e9, ### 
         lal.CreateDict(),
     )
     freqs = np.array([h.f0+i*h.deltaF for i in np.arange(h.data.length)])
@@ -121,7 +138,12 @@ for z in np.linspace(opts.min_z, opts.max_z, opts.Nz):
     snr = 4*np.sum(deltaF*np.conjugate(h)*template/PSD).real
 
     ### compute frequency averages
-    raise NotImplementedError, 'averages over freq'
+    aveF = 4*np.sum(deltaF*np.conjugate(template)*template/PSD * freqs).real
+    aveF2 = 4*np.sum(deltaF*np.conjugate(template)*template/PSD * freqs**2).real
+
+    sigmaF = aveF2 - aveF**2
 
     ### compute timing uncertainty
-    raise NotImplementedError, 'compute timing uncertainty'
+    print "    snr = %.3f"%snr
+    print "    Distance = %.3f Gpc"%(distance)
+    print "    sigmaT = (%.6e sec)"%(1./(2*np.pi*snr*sigmaF))
