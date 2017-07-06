@@ -1,0 +1,87 @@
+#!/usr/bin/python
+
+usage = "plot_psd [--options]"
+description = "make a simple plot of the PSDs"
+author = "Reed Essick"
+
+#-------------------------------------------------
+
+import simUtils as utils
+
+import numpy as np
+
+import matplotlib
+matplotlib.use("Agg")
+from matplotlib import pyplot as plt
+plt.rcParams.update({
+    'text.usetex':True,
+    'font.family': 'serif',
+    "axes.labelsize": 20,
+    "axes.titlesize": 20,
+    "figure.subplot.bottom": 0.12,
+    "figure.subplot.left": 0.14,
+    "figure.subplot.right": 0.97,
+    "figure.subplot.top": 0.97,
+    "grid.color": 'gray',
+#    "image.aspect": 'auto',
+#    "image.interpolation": 'nearest',
+#    "image.origin": 'lower',
+    "xtick.labelsize": 20,
+    "ytick.labelsize": 20,
+})
+
+from optparse import OptionParser
+
+#-------------------------------------------------
+
+parser = OptionParser(usage=usage, description=description)
+
+parser.add_option('-v', '--verbose', default=False, action='store_true')
+
+parser.add_option('', '--psd', default=[], type='string', action='append',
+    help='can overlay multiple psds by repeating this argument')
+
+parser.add_option('', '--fmin', default=1, type='float')
+parser.add_option('', '--fmax', default=4096, type='float')
+
+parser.add_option('-o', '--output-dir', default='.', type='string')
+parser.add_option('-t', '--tag', default='', type='string')
+
+parser.add_option('', '--figtype', default=[], type='string', action='append')
+parser.add_option('', '--dpi', default=300, type='int')
+
+opts, args = parser.parse_args()
+
+if opts.tag:
+    opts.tag = "_"+opts.tag
+
+if not opts.figtype:
+    opts.figtype.append( 'png' )
+
+#-------------------------------------------------
+
+freqs = np.logspace(np.log10(opts.fmin), np.log10(opts.fmax), 1001)
+
+fig = plt.figure()
+ax = fig.gca()
+
+for psd in opts.psd:
+    ax.loglog(freqs, utils.known_psds[psd](freqs)**0.5, label=psd)
+
+### decorate
+ax.set_xlabel('$f$ [Hz]')
+ax.set_ylabel('Amplitude Spectral Density [$1/\sqrt{\mathrm{Hz}}$]')
+
+ax.grid(True, which='both')
+
+ax.legend(loc='best')
+
+ax.set_xlim(xmin=opts.fmin, xmax=opts.fmax)
+
+### save
+for figtype in opts.figtype:
+    figname = "%s/psd%s.%s"%(opts.output_dir, opts.tag, figtype)
+    if opts.verbose:
+        print figname
+    fig.savefig(figname, dpi=opts.dpi)
+plt.close(fig)
