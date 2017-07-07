@@ -270,12 +270,12 @@ for tag, pole in [('', None)] + [('-'+''.join(los), utils.IFOs2pole(*los)) for l
     phi = phi[truth]
 
     bins = np.linspace(
-        90-opts.max_theta if opts.max_theta!=None else -90,
-        90-opts.min_theta if opts.min_theta!=None else +90,
+        opts.min_theta if opts.min_theta!=None else 0,
+        opts.max_theta if opts.max_theta!=None else 180,
         Nbins+1,
     )
     try:
-        axt.hist(90-rad2deg*theta, bins=bins, histtype='step', weights=np.ones_like(theta, dtype=float)/len(theta), color=c)
+        axt.hist(rad2deg*theta, bins=bins, histtype='step', weights=np.ones_like(theta, dtype=float)/len(theta), color=c)
     except ValueError:
         pass ### thrown when there are no samples within bins
 
@@ -289,16 +289,16 @@ for tag, pole in [('', None)] + [('-'+''.join(los), utils.IFOs2pole(*los)) for l
     except ValueError:
         pass ### thrown when there are no samples within bins
 
-    axt.set_xlabel('$\delta$')
+    axt.set_xlabel('$\\theta$')
     axt.set_ylabel('fraction of samples')
 
     axp.set_xlabel('$\phi$')
     axp.set_ylabel('fraction of samples')
 
     if opts.min_theta!=None:
-        axt.set_xlim(xmax=90-opts.min_theta)
+        axt.set_xlim(xmin=opts.min_theta)
     if opts.max_theta!=None:
-        axt.set_xlim(xmin=90-opts.max_theta)
+        axt.set_xlim(xmax=opts.max_theta)
 
     if opts.min_phi!=None:
         axp.set_xlim(xmin=opts.min_phi)
@@ -308,6 +308,15 @@ for tag, pole in [('', None)] + [('-'+''.join(los), utils.IFOs2pole(*los)) for l
     for ax in [axt, axp]:
         ax.grid(True, which='both')
         ax.set_xticklabels(['$%.1f^\circ$'%tick for tick in ax.get_xticks()])
+
+    if (opts.theta!=None) and (opts.phi!=None):
+        ylim = axt.get_ylim()
+        axt.plot([rad2deg*thetaINJ]*2, ylim, 'k-')
+        axt.set_ylim(ylim)
+
+        ylim = axp.get_ylim()
+        axp.plot([rad2deg*phiINJ]*2, ylim, 'k-')
+        axp.set_ylim(ylim)
 
     figname = "%s/cartesian-skymap-marginals%s%s.png"%(opts.output_dir, tag, opts.tag)
     if opts.verbose:

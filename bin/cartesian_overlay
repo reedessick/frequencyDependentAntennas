@@ -27,18 +27,18 @@ plt.rcParams.update({
 #    "axes.grid": True,
 #    "axes.axisbelow": False,
 #    "axes.formatter.limits": (-3, 4),
-    "axes.labelsize": 30,
-    "axes.titlesize": 30,
-    "figure.subplot.bottom": 0.15,
-    "figure.subplot.left": 0.16,
-    "figure.subplot.right": 0.93,
+    "axes.labelsize": 15,
+    "axes.titlesize": 15,
+    "figure.subplot.bottom": 0.10,
+    "figure.subplot.left": 0.13,
+    "figure.subplot.right": 0.95,
     "figure.subplot.top": 0.95,
     "grid.color": 'gray',
 #    "image.aspect": 'auto',
 #    "image.interpolation": 'nearest',
 #    "image.origin": 'lower',
-    "xtick.labelsize": 30,
-    "ytick.labelsize": 30,
+    "xtick.labelsize": 15,
+    "ytick.labelsize": 15,
 })
 
 import corner
@@ -252,6 +252,9 @@ color2 = mappable2.to_rgba(samples2['lnprob'][order2])
 
 truth2 = samples2['lnprob'][order2]>vmin
 
+c1 = mappable1.to_rgba(vmax)
+c2 = mappable2.to_rgba(vmax)
+
 ### set up quiver
 if opts.quiver:
     detectors = [utils.known_detectors[_] for _ in opts.instrument]
@@ -310,11 +313,11 @@ for tag, pole in [('', None)] + [('-'+''.join(los), utils.IFOs2pole(*los)) for l
     fig = plt.figure()
     ax = fig.gca()
 
-    theta, phi = utils.ThetaPhi2LineOfSight( samples1['theta'][order1], samples1['phi'][order1], pole=pole )
+    theta1, phi1 = utils.ThetaPhi2LineOfSight( samples1['theta'][order1], samples1['phi'][order1], pole=pole )
 
     ax.scatter(
-        rad2deg*phi[truth1], 
-        90 - rad2deg*theta[truth1], ### plot declination, not theta
+        rad2deg*phi1[truth1], 
+        90 - rad2deg*theta1[truth1], ### plot declination, not theta
         color=color1[truth1],
         alpha=opts.scatter_alpha,
         marker='o', 
@@ -328,11 +331,11 @@ for tag, pole in [('', None)] + [('-'+''.join(los), utils.IFOs2pole(*los)) for l
         else:
             cb1.set_label('$\ln p(\\vec{\\theta}|\mathrm{data},\mathrm{good})$')
 
-    theta, phi = utils.ThetaPhi2LineOfSight( samples2['theta'][order2], samples2['phi'][order2], pole=pole )
+    theta2, phi2 = utils.ThetaPhi2LineOfSight( samples2['theta'][order2], samples2['phi'][order2], pole=pole )
 
     ax.scatter(
-        rad2deg*phi[truth2], 
-        90 - rad2deg*theta[truth2], ### plot declination, not theta
+        rad2deg*phi2[truth2], 
+        90 - rad2deg*theta2[truth2], ### plot declination, not theta
         color=color2[truth2],
         alpha=opts.scatter_alpha,
         marker='o', 
@@ -353,8 +356,8 @@ for tag, pole in [('', None)] + [('-'+''.join(los), utils.IFOs2pole(*los)) for l
 
     ax.grid(True, which='both')
     if (opts.phi!=None) and (opts.theta!=None):
-        theta, phi = utils.ThetaPhi2LineOfSight( opts.theta, opts.phi, pole=pole )
-        ax.plot(rad2deg*phi, 90-rad2deg*theta, marker='x', markersize=10, color=opts.color, alpha=opts.alpha )
+        thetaINJ, phiINJ = utils.ThetaPhi2LineOfSight( opts.theta, opts.phi, pole=pole )
+        ax.plot(rad2deg*phiINJ, 90-rad2deg*thetaINJ, marker='x', markersize=10, color=opts.color, alpha=opts.alpha )
 
     if opts.min_theta!=None:
         ax.set_ylim(ymax=90-opts.min_theta)
@@ -450,3 +453,74 @@ for tag, pole in [('', None)] + [('-'+''.join(los), utils.IFOs2pole(*los)) for l
         fig.savefig(figname)
 
     plt.close(figname)
+
+    ### overlay marginals
+    fig = plt.figure()
+    axt = plt.subplot(2,1,1)
+    axp = plt.subplot(2,1,2)
+
+    Nbins=50
+
+    ### only keep the samples with large enough lnprob
+    theta1 = theta1[truth1]
+    phi1 = phi1[truth1]
+
+    theta2 = theta2[truth2]
+    phi2 = phi2[truth2]
+
+    bins = np.linspace(
+        opts.min_theta if opts.min_theta!=None else 0,
+        opts.max_theta if opts.max_theta!=None else 180,
+        Nbins+1,
+    )
+    for theta, c in [(theta1, c1), (theta2, c2)]:
+        try:
+            axt.hist(rad2deg*theta, bins=bins, histtype='step', weights=np.ones_like(theta, dtype=float)/len(theta), color=c)
+        except ValueError:
+            pass ### thrown when there are no samples within bins
+
+    bins = np.linspace(
+        opts.min_phi if opts.min_phi!=None else -180,
+        opts.max_phi if opts.max_phi!=None else +180,
+        Nbins+1,
+    )
+    for phi, c in [(phi1, c1), (phi2, c2)]:
+        try:
+            axp.hist(rad2deg*phi, bins=bins, histtype='step', weights=np.ones_like(phi, dtype=float)/len(phi), color=c)
+        except ValueError:
+            pass ### thrown when there are no samples within bins
+
+    axt.set_xlabel('$\\theta$')
+    axt.set_ylabel('fraction of samples')
+
+    axp.set_xlabel('$\phi$')
+    axp.set_ylabel('fraction of samples')
+
+    if opts.min_theta!=None:
+        axt.set_xlim(xmin=opts.min_theta)
+    if opts.max_theta!=None:
+        axt.set_xlim(xmax=opts.max_theta)
+
+    if opts.min_phi!=None:
+        axp.set_xlim(xmin=opts.min_phi)
+    if opts.max_phi!=None:
+        axp.set_xlim(xmax=opts.max_phi)
+
+    for ax in [axt, axp]:
+        ax.grid(True, which='both')
+        ax.set_xticklabels(['$%.1f^\circ$'%tick for tick in ax.get_xticks()])
+
+    if (opts.theta!=None) and (opts.phi!=None):
+        ylim = axt.get_ylim()
+        axt.plot([rad2deg*thetaINJ]*2, ylim, 'k-')
+        axt.set_ylim(ylim)
+
+        ylim = axp.get_ylim()
+        axp.plot([rad2deg*phiINJ]*2, ylim, 'k-')
+        axp.set_ylim(ylim)
+
+    figname = "%s/cartesian_overlay-skymap-marginals%s%s.png"%(opts.output_dir, tag, opts.tag)
+    if opts.verbose:
+        print( '    saving : '+figname )
+    fig.savefig(figname)
+    plt.close(fig)
