@@ -27,18 +27,18 @@ plt.rcParams.update({
 #    "axes.grid": True,
 #    "axes.axisbelow": False,
 #    "axes.formatter.limits": (-3, 4),
-    "axes.labelsize": 15,
-    "axes.titlesize": 15,
-    "figure.subplot.bottom": 0.10,
-    "figure.subplot.left": 0.13,
-    "figure.subplot.right": 0.95,
+    "axes.labelsize": 25,
+    "axes.titlesize": 25,
+    "figure.subplot.bottom": 0.14,
+    "figure.subplot.left": 0.14,
+    "figure.subplot.right": 0.93,
     "figure.subplot.top": 0.95,
     "grid.color": 'gray',
 #    "image.aspect": 'auto',
 #    "image.interpolation": 'nearest',
 #    "image.origin": 'lower',
-    "xtick.labelsize": 15,
-    "ytick.labelsize": 15,
+    "xtick.labelsize": 25,
+    "ytick.labelsize": 25,
 })
 
 import corner
@@ -310,6 +310,10 @@ if opts.quiver:
 
 ### iterate over line-of-sight frames
 for tag, pole in [('', None)] + [('-'+''.join(los), utils.IFOs2pole(*los)) for los in opts.line_of_sight]:
+
+    if opts.verbose:
+        print "\n--- %s ---\n"%tag
+
     fig = plt.figure()
     ax = fig.gca()
 
@@ -357,7 +361,7 @@ for tag, pole in [('', None)] + [('-'+''.join(los), utils.IFOs2pole(*los)) for l
     ax.grid(True, which='both')
     if (opts.phi!=None) and (opts.theta!=None):
         thetaINJ, phiINJ = utils.ThetaPhi2LineOfSight( opts.theta, opts.phi, pole=pole )
-        ax.plot(rad2deg*phiINJ, 90-rad2deg*thetaINJ, marker='x', markersize=10, color=opts.color, alpha=opts.alpha )
+        ax.plot(rad2deg*phiINJ, 90-rad2deg*thetaINJ, marker='x', markersize=20, markeredgewidth=2, color=opts.color, alpha=opts.alpha )
 
     if opts.min_theta!=None:
         ax.set_ylim(ymax=90-opts.min_theta)
@@ -479,6 +483,16 @@ for tag, pole in [('', None)] + [('-'+''.join(los), utils.IFOs2pole(*los)) for l
         except ValueError:
             pass ### thrown when there are no samples within bins
 
+    ### KL divergence
+    t1 = np.histogram(rad2deg*theta1, bins=bins, weights=np.ones_like(theta1, dtype=float)/len(theta1))[0]
+    t2 = np.histogram(rad2deg*theta2, bins=bins, weights=np.ones_like(theta2, dtype=float)/len(theta2))[0]
+    print "Theta:"
+    print "  H(1) = %.6e"%(-np.sum(t1[t1>0] * np.log(t1[t1>0])))
+    print "  H(2) = %.6e"%(-np.sum(t2[t2>0] * np.log(t2[t2>0])))
+    print "  KL(1->2) = %.6e"%(np.sum(t1[t1>0] * np.log(t1[t1>0]/t2[t1>0])))
+    print "  KL(2->1) = %.6e"%(np.sum(t2[t2>0] * np.log(t2[t2>0]/t1[t2>0])))
+    print "  F = %.6f"%(np.sum((t1*t2)**0.5))
+
     bins = np.linspace(
         opts.min_phi if opts.min_phi!=None else -180,
         opts.max_phi if opts.max_phi!=None else +180,
@@ -489,6 +503,16 @@ for tag, pole in [('', None)] + [('-'+''.join(los), utils.IFOs2pole(*los)) for l
             axp.hist(rad2deg*phi, bins=bins, histtype='step', weights=np.ones_like(phi, dtype=float)/len(phi), color=c)
         except ValueError:
             pass ### thrown when there are no samples within bins
+
+    ### KL divergence
+    p1 = np.histogram(rad2deg*phi1, bins=bins, weights=np.ones_like(phi1, dtype=float)/len(phi1))[0]
+    p2 = np.histogram(rad2deg*phi2, bins=bins, weights=np.ones_like(phi2, dtype=float)/len(phi2))[0]
+    print "Phi:"
+    print "  H(1) = %.6e"%(-np.sum(p1[p1>0] * np.log(p1[p1>0])))
+    print "  H(2) = %.6e"%(-np.sum(p2[p2>0] * np.log(p2[p2>0])))
+    print "  KL(1->2) = %.6e"%(np.sum(p1[p1>0] * np.log(p1[p1>0]/p2[p1>0])))
+    print "  KL(2->1) = %.6e"%(np.sum(p2[p2>0] * np.log(p2[p2>0]/p1[p2>0])))
+    print "  F = %.6f"%(np.sum((p1*p2)**0.5))
 
     axt.set_xlabel('$\\theta$')
     axt.set_ylabel('fraction of samples')

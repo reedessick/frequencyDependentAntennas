@@ -142,8 +142,9 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     if opts.Verbose:
         print '  %d / %d'%(ind+1, opts.Nfreq)
+        print '    f/fsr = %.6f'%(2*freqs[ind])
 
-    title = "$f/f_\mathrm{fsr} = %.3f$"%(2*freqs[ind])
+    title = "$f/f_\mathrm{fsr} = %.1f$"%(2*freqs[ind])
 
     #--- total magnitude
     fig = plt.figure()
@@ -151,7 +152,7 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     ax.set_title(title)
 
-    lalinf_plot.healpix_heatmap( np.abs(fp)**2+np.abs(fx)**2, cmap=plt.get_cmap(opts.color_map) )
+    lalinf_plot.healpix_heatmap( (np.abs(fp)**2+np.abs(fx)**2)**0.5, cmap=plt.get_cmap(opts.color_map) )
 
     for theta, phi, text in [(exTheta, exPhi, '$\ e_x$'), (eyTheta, eyPhi, '$\ e_y$')]:
         dec = 0.5*np.pi-theta
@@ -162,7 +163,7 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
     ax.grid(True, which='both')
 
     cb = plt.colorbar(orientation='horizontal', shrink=0.8, pad=0.05)
-    cb.set_label('$|F_+|^2+|F_\\times|^2$')
+    cb.set_label('$\sqrt{|F_+|^2+|F_\\times|^2}$')
 #    cb.set_clim(vmin=0, vmax=1)
 
     figname = "%s/mag_%04d%s.png"%(opts.output_dir, ind, opts.tag)

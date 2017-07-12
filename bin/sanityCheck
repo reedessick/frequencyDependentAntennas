@@ -90,11 +90,11 @@ fig = plt.figure()
 mag_ax = plt.subplot(2,1,1)
 phs_ax = plt.subplot(2,1,2)
 
-for n in np.linspace(-1, 1, opts.Ndirc):
+for n in np.linspace(-1, 1, opts.Ndirc)[::-1]:
     D = ant.__D__(omegaL, n)
-    label = '$n=$%.3f'%n
+    label = '$n_e=%.1f$'%n
 
-    linestyle = 'solid' if n > 0 else 'dashed'
+    linestyle = 'solid' if n <= 0 else 'dashed'
 
     mag_ax.plot(2*freqs, np.abs(D), label=label, linestyle=linestyle)
     phs_ax.plot(2*freqs, np.arctan2(D.imag, D.real)*180/np.pi, label=label, linestyle=linestyle)
@@ -115,7 +115,7 @@ phs_ax.set_ylim(ymin=-181, ymax=181)
 
 mag_ax.legend(loc='best', ncol=2)
 
-mag_ax.set_title('$D(f/f_\mathrm{fsr},n)$')
+mag_ax.set_title('$D(f/f_\mathrm{fsr},n_e)$')
 
 plt.subplots_adjust(hspace=0.05)
 

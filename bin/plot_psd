@@ -44,6 +44,8 @@ parser.add_option('', '--psd', default=[], type='string', action='append',
 parser.add_option('', '--fmin', default=1, type='float')
 parser.add_option('', '--fmax', default=4096, type='float')
 
+parser.add_option('', '--ymax', default=None, type='float')
+
 parser.add_option('-o', '--output-dir', default='.', type='string')
 parser.add_option('-t', '--tag', default='', type='string')
 
@@ -77,6 +79,9 @@ ax.grid(True, which='both')
 ax.legend(loc='best')
 
 ax.set_xlim(xmin=opts.fmin, xmax=opts.fmax)
+
+if opts.ymax!=None:
+    ax.set_ylim(ymax=opts.ymax)
 
 ### save
 for figtype in opts.figtype:

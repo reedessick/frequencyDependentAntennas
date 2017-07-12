@@ -41,6 +41,8 @@ plt.rcParams.update({
     "ytick.labelsize": 14,
 })
 
+import json ### used to add continents
+
 from lalinference import plot as lalinf_plot
 
 from optparse import OptionParser
@@ -141,6 +143,13 @@ if opts.Verbose:
 
 #------------------------
 
+geojson_filename = os.path.join(os.path.dirname(lalinf_plot.__file__), 'ne_simplified_coastline.json')
+file_obj = open(geojson_filename, 'r')
+geojson = json.load(file_obj)
+file_obj.close()
+
+#------------------------
+
 if opts.verbose:
     print( 'generating heatmaps of time-of-arrival delays' )
         
@@ -170,6 +179,14 @@ for jnd, detector in enumerate(detectors):
         ax.plot(phi, dec, marker='o', markerfacecolor='none', markersize=10)
         ax.plot(phi, dec, marker='.', markerfacecolor='none', markersize=1)
         ax.text(phi, dec, label, ha='left', va='top', fontsize=14)
+
+    for shape in geojson['geometries']:
+        verts = np.deg2rad(shape['coordinates'])
+        ax.plot( verts[:, 0], verts[:, 1], color='grey', linewidth=0.5, alpha=1.0 )
+
+    ### add annotations
+    ax.text(np.arctan2(detector.ez[1], detector.ez[0]), 0.5*np.pi-np.arccos(detector.ez[2]), detector.name.split('-')[-1], color='k', ha='center', va='center', fontsize=15)
+
 
     ### save
     figname = "%s/quiver-skymap-%s%s.png"%(opts.output_dir, detector.name, opts.tag)
@@ -222,8 +239,24 @@ for jnd1, det1 in enumerate(detectors[:-1]):
         cb = plt.colorbar(orientation='horizontal', shrink=0.8, pad=0.05)
         cb.set_label('$|\delta \\vec{\\theta}|$ [$^\circ$]')
 
-        ax_heatmap.set_title('%s and %s'%(det1.name, det2.name))
+#        ax_heatmap.set_title('%s and %s'%(det1.name, det2.name))
         ax_heatmap.grid(True, which='both')
+
+        ### add continents
+        for shape in geojson['geometries']:
+            verts = np.deg2rad(shape['coordinates'])
+            ax_heatmap.plot( verts[:, 0], verts[:, 1], color='grey', linewidth=0.5, alpha=1.0 )
+
+        ### add annotations
+        for det in [det1, det2]:
+            ax_heatmap.text(np.arctan2(det.ez[1], det.ez[0]), 0.5*np.pi-np.arccos(det.ez[2]), det.name.split('-')[-1], color='k', ha='center', va='center', fontsize=15)
+
+        for name, r in [
+                (det1.name.split('-')[-1]+'$\leftarrow$'+det2.name.split('-')[-1], det1.r-det2.r), 
+                (det1.name.split('-')[-1]+'$\\rightarrow$'+det2.name.split('-')[-1], det2.r-det1.r)
+            ]:
+            r /= np.sum(r*r)**0.5
+            ax_heatmap.text(np.arctan2(r[1], r[0]), 0.5*np.pi-np.arccos(r[2]), name, color='w', ha='center', va='center', fontsize=12)
 
         ### save
         figname = "%s/quiver-skymap_heatmap-%s-%s%s.png"%(opts.output_dir, det1.name, det2.name, opts.tag)
@@ -287,13 +320,27 @@ for jnd1, det1 in enumerate(detectors[:-1]):
                 ec=color,
             )
 
-        ax.set_title('%s and %s'%(det1.name, det2.name))
-
+#        ax.set_title('%s and %s'%(det1.name, det2.name))
         ax.grid(True, which='both')
 
         if not opts.no_quiver_colorbar:
             cb = plt.colorbar(mappable, orientation='horizontal', shrink=0.8, pad=0.05)
             cb.set_label('$|\delta \\vec{\\theta}|$ [$^\circ$]')
+
+        for shape in geojson['geometries']:
+            verts = np.deg2rad(shape['coordinates'])
+            ax.plot( verts[:, 0], verts[:, 1], color='grey', linewidth=0.5, alpha=1.0 )
+
+        ### add annotations
+        for det in [det1, det2]:
+            ax.text(np.arctan2(det.ez[1], det.ez[0]), 0.5*np.pi-np.arccos(det.ez[2]), det.name.split('-')[-1], color='k', ha='center', va='center', fontsize=15)
+
+        for name, r in [
+                (det1.name.split('-')[-1]+'$\leftarrow$'+det2.name.split('-')[-1], det1.r-det2.r), 
+                (det1.name.split('-')[-1]+'$\\rightarrow$'+det2.name.split('-')[-1], det2.r-det1.r)
+            ]:
+            r /= np.sum(r*r)**0.5
+            ax.text(np.arctan2(r[1], r[0]), 0.5*np.pi-np.arccos(r[2]), name, color='k', ha='center', va='center', fontsize=12)
 
         ### save
         figname = "%s/quiver-skymap-%s-%s%s.png"%(opts.output_dir, det1.name, det2.name, opts.tag)
