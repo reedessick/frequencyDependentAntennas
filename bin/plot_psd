@@ -6,6 +6,7 @@ author = "Reed Essick"
 
 #-------------------------------------------------
 
+import freqDepAntennas as ant
 import simUtils as utils
 
 import numpy as np
@@ -52,6 +53,9 @@ parser.add_option('-t', '--tag', default='', type='string')
 parser.add_option('', '--figtype', default=[], type='string', action='append')
 parser.add_option('', '--dpi', default=300, type='int')
 
+parser.add_option('', '--theta-phi', nargs=2, default=[], type='float', action='append',
+    help='the angles (in degreeds) for which we will add in the detector response for the PSDs')
+
 opts, args = parser.parse_args()
 
 if opts.tag:
@@ -66,9 +70,45 @@ freqs = np.logspace(np.log10(opts.fmin), np.log10(opts.fmax), 1001)
 
 fig = plt.figure()
 ax = fig.gca()
+ox = ax.twinx()
 
+plt.setp(ox.get_yticklabels(), visible=False)
+
+colors = 'b m k y'.split()
+i = 0
 for psd in opts.psd:
-    ax.loglog(freqs, utils.known_psds[psd](freqs)**0.5, label=psd)
+    if opts.verbose:
+        print( 'plotting : '+psd )
+    ### plot the frequency-response-modified curves
+    if 'CE' in psd:
+        T = 40e3/utils.c
+
+        for theta, phi in opts.theta_phi:
+
+            if opts.verbose:
+                print( '    theta = %.1f deg && phi = %.1f deg'%(theta , phi))
+
+            t = theta*np.pi/180
+            p = phi*np.pi/180
+
+            ### compute response at interesting frequencies
+            Fp, Fx = ant.antenna_response(t, p, 0.0, np.array([1,0,0]), np.array([0,1,0]), T=T, freqs=freqs)
+            Fp = Fp[:,0]
+            Fx = Fx[:,0]
+            mag = (np.abs(Fp)**2 + np.abs(Fx)**2)**0.5
+
+            ### normalize by the zero-freq limit
+            fp, fx = ant.const_antenna_response(t, p, 0.0, np.array([1,0,0]), np.array([0,1,0]))
+            mag /= (fp**2+fx**2)**0.5 
+
+            ### plot the modified psd
+            ax.loglog(freqs, utils.known_psds[psd](freqs)**0.5/mag, linestyle='dashed', linewidth=1, alpha=0.75)
+
+    if opts.verbose:
+        print( '    base curve' )
+    ### plot the "base curve" on top
+    ox.loglog(freqs, utils.known_psds[psd](freqs)**0.5, label=psd, linestyle='solid', linewidth=2, alpha=1.0, color=colors[i%len(colors)])
+    i += 1
 
 ### decorate
 ax.set_xlabel('$f$ [Hz]')
@@ -76,12 +116,21 @@ ax.set_ylabel('Amplitude Spectral Density [$1/\sqrt{\mathrm{Hz}}$]')
 
 ax.grid(True, which='both')
 
-ax.legend(loc='best')
+ox.legend(loc='upper center')
 
 ax.set_xlim(xmin=opts.fmin, xmax=opts.fmax)
 
 if opts.ymax!=None:
     ax.set_ylim(ymax=opts.ymax)
+
+ox.set_ylim(ax.get_ylim())
+ox.set_xlim(ax.get_xlim())
+
+### hard code a few things because why not? I'm making this harder on myself than I have to
+fig.text(0.89, 0.43, '$\\theta=0^\circ$',  ha='center', va='center', fontsize=15, color='b')
+fig.text(0.95, 0.355, '$30^\circ$', ha='center', va='center', fontsize=15, color='g')
+fig.text(0.95, 0.26, '$60^\circ$', ha='center', va='center', fontsize=15, color='r')
+fig.text(0.90, 0.30, '$90^\circ$', ha='center', va='center', fontsize=15, color='c')
 
 ### save
 for figtype in opts.figtype:

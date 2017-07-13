@@ -71,6 +71,8 @@ parser.add_option('', '--color-map', default='OrRd', type='string')
 parser.add_option('', '--annotation-color', default='k', type='string',
     help='the color of the annotations that mark the detector arms')
 
+parser.add_option('', '--max-val', default=None, type='float')
+
 parser.add_option('-o', '--output-dir', default='.', type='string')
 parser.add_option('-t', '--tag', default='', type='string')
 
@@ -164,7 +166,8 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     cb = plt.colorbar(orientation='horizontal', shrink=0.8, pad=0.05)
     cb.set_label('$\sqrt{|F_+|^2+|F_\\times|^2}$')
-#    cb.set_clim(vmin=0, vmax=1)
+    if opts.max_val!=None:
+        cb.set_clim(vmin=0, vmax=opts.max_val)
 
     figname = "%s/mag_%04d%s.png"%(opts.output_dir, ind, opts.tag)
     if opts.verbose:
@@ -190,7 +193,8 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     cb = plt.colorbar(orientation='horizontal', shrink=0.8, pad=0.05)
     cb.set_label('$|F_+|^2$')
-#    cb.set_clim(vmin=0, vmax=1)
+    if opts.max_val!=None:
+        cb.set_clim(vmin=0, vmax=opts.max_val)
 
     figname = "%s/magF+_%04d%s.png"%(opts.output_dir, ind, opts.tag)
     if opts.verbose:
@@ -242,6 +246,8 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     cb = plt.colorbar(orientation='horizontal', shrink=0.8, pad=0.05)
     cb.set_label('$\mathcal{R}\{F_+\}$')
+    if opts.max_val!=None:
+        cb.set_clim(vmin=0, vmax=opts.max_val)
 
     figname = "%s/realF+_%04d%s.png"%(opts.output_dir, ind, opts.tag)
     if opts.verbose:
@@ -267,6 +273,8 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     cb = plt.colorbar(orientation='horizontal', shrink=0.8, pad=0.05)
     cb.set_label('$\mathcal{I}\{F_+\}$')
+    if opts.max_val!=None:
+        cb.set_clim(vmin=0, vmax=opts.max_val)
 
     figname = "%s/imagF+_%04d%s.png"%(opts.output_dir, ind, opts.tag)
     if opts.verbose:
@@ -292,7 +300,8 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     cb = plt.colorbar(orientation='horizontal', shrink=0.8, pad=0.05)
     cb.set_label('$|F_\\times|^2$')
-#    cb.set_clim(vmin=0, vmax=1)
+    if opts.max_val!=None:
+        cb.set_clim(vmin=0, vmax=opts.max_val)
 
     figname = "%s/magFx_%04d%s.png"%(opts.output_dir, ind, opts.tag)
     if opts.verbose:
@@ -344,6 +353,8 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     cb = plt.colorbar(orientation='horizontal', shrink=0.8, pad=0.05)
     cb.set_label(' $\mathcal{R}\{F_\\times\}$')
+    if opts.max_val!=None:
+        cb.set_clim(vmin=0, vmax=opts.max_val)
 
     figname = "%s/realFx_%04d%s.png"%(opts.output_dir, ind, opts.tag)
     if opts.verbose:
@@ -369,6 +380,8 @@ for ind, (freq, fp, fx) in enumerate(zip(freqs, Fp, Fx)):
 
     cb = plt.colorbar(orientation='horizontal', shrink=0.8, pad=0.05)
     cb.set_label('$\mathcal{I}\{F_\\times\}$')
+    if opts.max_val!=None:
+        cb.set_clim(vmin=0, vmax=opts.max_val)
 
     figname = "%s/imagFx_%04d%s.png"%(opts.output_dir, ind, opts.tag)
     if opts.verbose:
