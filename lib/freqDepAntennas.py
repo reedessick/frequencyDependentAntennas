@@ -19,6 +19,8 @@ import numpy as np
 def __D__( freqsT, N ):
     '''
     helper function that returns the part of the frequency dependence that depends on the arm's directions
+
+    assumes freqsT = 2j*np.pi*freqs*T
     '''
     if isinstance(freqsT, (int, float, complex)):
         if freqsT==0:

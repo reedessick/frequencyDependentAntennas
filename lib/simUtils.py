@@ -96,8 +96,7 @@ class Detector(object):
             Fx = Fx[:,0]
         ### overall phase delay from extra time-of-flight
         ### r is measured in seconds
-        ### FIXME: there could be a sign error here depending on our convention for FFT's...
-        phs = twoIpi*freqs*self.dt(theta, phi)
+        phs = -twoIpi*freqs*self.dt(theta, phi) ### expect h_IFO(t) = h(t - n*r) = h(t-dt) by my convention
 
         return (Fp*hpf + Fx*hxf)*np.exp(phs)
 
